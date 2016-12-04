@@ -1,0 +1,134 @@
+crawler:
+  build: crawler
+  volumes:
+    - ./crawler/.:/tmp/
+  environment:
+    - DB_HOSTNAME=db-development
+    - DB_NAME=search_engine
+    - DB_USERNAME=postgres
+    - DB_PASSWORD=
+    - DB_PORT=5432
+    - REDIS_ADDRESS=redis-development
+    - REDIS_PORT=6379
+    - AWS_ACCESS_ID=fake
+    - AWS_ACCESS_KEY=fake
+    - AWS_REGION=eu-west-1
+    - SQS_SECURE=False
+    - SQS_ADDRESS=sqs-development
+    - SQS_PORT=9494
+  links:
+    - redis-development
+    - db-development
+    - sqs-development
+
+indexer:
+  build: indexer
+  volumes:
+    - ./indexer/.:/tmp/
+  environment:
+    - DB_HOSTNAME=db-development
+    - DB_NAME=search_engine
+    - DB_USERNAME=postgres
+    - DB_PASSWORD=
+    - DB_PORT=5432
+    - REDIS_ADDRESS=redis-development
+    - REDIS_PORT=6379
+    - AWS_ACCESS_ID=fake
+    - AWS_ACCESS_KEY=fake
+    - AWS_REGION=eu-west-1
+    - SQS_SECURE=False
+    - SQS_ADDRESS=sqs-development
+    - SQS_PORT=9494
+  links:
+    - redis-development
+    - db-development
+    - sqs-development
+
+url-server:
+  build: url_server
+  volumes:
+    - ./url_server/.:/tmp/
+  environment:
+    - DB_HOSTNAME=db-development
+    - DB_NAME=search_engine
+    - DB_USERNAME=postgres
+    - DB_PASSWORD=
+    - DB_PORT=5432
+    - REDIS_ADDRESS=redis-development
+    - REDIS_PORT=6379
+    - AWS_ACCESS_ID=fake
+    - AWS_ACCESS_KEY=fake
+    - AWS_REGION=eu-west-1
+    - SQS_SECURE=False
+    - SQS_ADDRESS=sqs-development
+    - SQS_PORT=9494
+  links:
+    - redis-development
+    - db-development
+    - sqs-development
+
+web:
+  build: web
+  volumes:
+    - ./web/.:/var/www/html/
+  environment:
+    - DB_HOSTNAME=db-development
+    - DB_NAME=search_engine
+    - DB_USERNAME=postgres
+    - DB_PASSWORD=
+    - DB_PORT=5432
+    - REDIS_ADDRESS=redis-development
+    - REDIS_PORT=6379
+    - AWS_ACCESS_ID=fake
+    - AWS_ACCESS_KEY=fake
+    - AWS_REGION=eu-west-1
+    - SQS_SECURE=False
+    - SQS_ADDRESS=sqs-development
+    - SQS_PORT=9494
+  ports:
+    - "80:80"
+  links:
+    - redis-development
+    - db-development
+    - sqs-development
+
+pageranker:
+  build: pageranker
+  volumes:
+    - ./pageranker/.:/tmp/
+  environment:
+    - DB_HOSTNAME=db-development
+    - DB_NAME=search_engine
+    - DB_USERNAME=postgres
+    - DB_PASSWORD=
+    - DB_PORT=5432
+    - REDIS_ADDRESS=redis-development
+    - REDIS_PORT=6379
+    - AWS_ACCESS_ID=fake
+    - AWS_ACCESS_KEY=fake
+    - AWS_REGION=eu-west-1
+    - SQS_SECURE=False
+    - SQS_ADDRESS=sqs-development
+    - SQS_PORT=9494
+  links:
+    - redis-development
+    - db-development
+    - sqs-development
+
+redis-development:
+  image: 'redis:3.2-alpine'
+  command: redis-server
+  ports:
+    - "6379:6379"
+
+db-development:
+  build: db-development
+  ports:
+    - "5433:5432"
+
+sqs-development:
+  image: feathj/fake-sqs
+  ports:
+    - "9494:9494"
+  environment:
+    VIRTUAL_HOST: "sqs-development"
