@@ -1,6 +1,6 @@
 # Sigma
 
-**Full-Scale Search Engine Made From Scratch**
+**Web-Scale Search Engine Made From Scratch**
 
 In active development: https://trello.com/b/GQWSoSuV/search-engine
 
