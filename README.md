@@ -50,8 +50,8 @@ This last command is going to pull somes images, and build the others. Then it's
 
 ### References
 
-- infolab.stanford.edu/~backrub/google.html
+- http://infolab.stanford.edu/~backrub/google.html
 - http://pr.efactory.de/e-pagerank-algorithm.shtml
 - http://nlp.stanford.edu/IR-book/html/htmledition/a-first-take-at-building-an-inverted-index-1.html
 
-* To write *
+*To write*
