@@ -87,7 +87,7 @@
 
       // Get metadata for these doc_ids from PG
       foreach ($results as $key => $value) {
-        $query = "SELECT url, encode(title, 'escape') AS title FROM doc_index WHERE doc_id=$value[doc_id]";
+        $query = "SELECT url, title FROM doc_index WHERE doc_id=$value[doc_id]";
         $rs = pg_query($pg, $query) or die("Error\n");
         $row = pg_fetch_row($rs);
 

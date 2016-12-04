@@ -29,7 +29,7 @@ class Indexer
 
     @conn = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
-    @conn.prepare('update_doc_in_doc_index', 'update doc_index set title=$1::bytea, outgoing_links=$2, parsed_at=$3, status=$4, url=$5 WHERE doc_id=$6')
+    @conn.prepare('update_doc_in_doc_index', 'update doc_index set title=$1, outgoing_links=$2, parsed_at=$3, status=$4, url=$5 WHERE doc_id=$6')
     @conn.prepare('insert_doc_into_doc_index', 'INSERT INTO doc_index (url) VALUES ($1) RETURNING *')
     @conn.prepare('delete_from_errors', 'DELETE FROM errors WHERE doc_id=$1')
     @conn.prepare('delete_from_doc_index', 'DELETE FROM doc_index WHERE doc_id=$1')
@@ -37,7 +37,7 @@ class Indexer
   end
 
   def new_docs_from_repository
-    res = @conn.exec('SELECT doc_id, url, encode(content, \'escape\') AS content
+    res = @conn.exec('SELECT doc_id, url, content
       FROM repository
       WHERE doc_id IN (
         SELECT doc_id
@@ -110,8 +110,6 @@ class Indexer
   end
 
   def update_index(doc_id, title, outgoing_links, parsed_at, url)
-    title = @conn.escape_bytea(title) unless title.nil?
-
     @conn.exec_prepared('update_doc_in_doc_index', [title, outgoing_links, parsed_at, 'OK', url, doc_id])
 
     doc_id

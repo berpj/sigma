@@ -23,7 +23,7 @@ class Crawler
 
     @conn = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
-    @conn.prepare('insert_doc_into_repository', 'insert into repository (doc_id, url, content) values ($1, $2, $3::bytea)')
+    @conn.prepare('insert_doc_into_repository', 'insert into repository (doc_id, url, content) values ($1, $2, $3)')
     @conn.prepare('insert_doc_into_errors', 'insert into errors (doc_id, url, error, details) values ($1, $2, $3, $4)')
   end
 
@@ -68,7 +68,7 @@ class Crawler
       when Net::HTTPSuccess
         raise Net::HTTPBadResponse, 'Body nil' if response.body.nil?
 
-        return url, response.body, response.code.to_i, nil
+        return url, response.body.force_encoding("UTF-8"), response.code.to_i, nil
       when Net::HTTPRedirection
         return crawl_page(response.header['location'], redirect_limit - 1)
       else
@@ -86,8 +86,6 @@ class Crawler
   end
 
   def add_to_repository(doc_id, url, content)
-    content = @conn.escape_bytea(content)
-
     @conn.exec_prepared('insert_doc_into_repository', [doc_id, url, content])
   end
 
