@@ -1,7 +1,6 @@
 #!/usr/bin/ruby
 
 class PageRank
-
   @conn = nil
 
   @docs = []
@@ -10,7 +9,7 @@ class PageRank
     require 'pg'
     require 'redis'
 
-    @redis = Redis.new(:host => ENV['REDIS_ADDRESS'], :port => ENV['REDIS_PORT'])
+    @redis = Redis.new(host: ENV['REDIS_ADDRESS'], port: ENV['REDIS_PORT'])
 
     db_hostname = ENV['DB_HOSTNAME']
     db_username = ENV['DB_USERNAME']
@@ -24,11 +23,11 @@ class PageRank
   def get_backlinks(doc_id)
     backlinks = @redis.smembers("links_#{doc_id}")
 
-    (backlinks.nil?) ? ([]) : (backlinks.map(&:to_i))
+    backlinks.nil? ? [] : backlinks.map(&:to_i)
   end
 
   def get_pagerank(doc_id)
-    pagerank = @redis.hgetall("pageranks_#{doc_id}")
+    @redis.hgetall("pageranks_#{doc_id}")
   end
 
   def compute_pagerank(doc)
@@ -44,7 +43,7 @@ class PageRank
     backlinks.each do |backlink_doc_id|
       backlink = get_pagerank(backlink_doc_id)
 
-      next if backlink.nil? || backlink['outgoing_links'].to_i == 0
+      next if backlink.nil? || backlink['outgoing_links'].to_i.zero?
 
       backlinks_pagerank += backlink['pagerank'].to_f / backlink['outgoing_links'].to_f
     end
@@ -73,7 +72,7 @@ $stdout.sync = true
 
 pagerank = PageRank.new
 
-while true do
+loop do
   docs = pagerank.update_pageranks_index
 
   docs.each do |doc|

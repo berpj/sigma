@@ -1,7 +1,6 @@
 #!/usr/bin/ruby
 
 class UrlServer
-
   @conn = nil
 
   def initialize
@@ -20,28 +19,28 @@ class UrlServer
     @conn.prepare('select_timedout_in_doc_index', 'SELECT doc_id, url, status FROM doc_index WHERE status=\'WIP\' AND (sent_to_crawler_at<$1 OR sent_to_crawler_at IS NULL) LIMIT 128')
   end
 
-  def get_new_docs_to_crawl
+  def new_docs_to_crawl
     res = @conn.exec('SELECT DISTINCT ON (CONCAT(split_part(split_part(split_part(url, \'//\', 2), \'/\', 1), \'.\', 1), split_part(split_part(split_part(url, \'//\', 2), \'/\', 1), \'.\', 2))) doc_id, url, status FROM doc_index WHERE parsed_at IS NULL AND status IS NULL LIMIT 384')
 
-    docs = Array.new
+    docs = []
 
     res.each do |doc|
-      docs << { :doc_id => doc['doc_id'], :url => doc['url'], :status => doc['status'] }
+      docs << { doc_id: doc['doc_id'], url: doc['url'], status: doc['status'] }
     end
 
-    return docs
+    docs
   end
 
-  def get_docs_to_recrawl
-    res = @conn.exec_prepared('select_timedout_in_doc_index', [ Time.now.to_i - 20 * 60 ])
+  def docs_to_recrawl
+    res = @conn.exec_prepared('select_timedout_in_doc_index', [Time.now.to_i - 20 * 60])
 
-    docs = Array.new
+    docs = []
 
     res.each do |doc|
-      docs << { :doc_id => doc['doc_id'], :url => doc['url'], :status => doc['status'] }
+      docs << { doc_id: doc['doc_id'], url: doc['url'], status: doc['status'] }
     end
 
-    return docs
+    docs
   end
 
   def send_docs_to_crawler(docs)
@@ -49,19 +48,19 @@ class UrlServer
     require 'json'
 
     AWS.config(
-      :access_key_id => ENV['AWS_ACCESS_ID'],
-      :secret_access_key => ENV['AWS_ACCESS_KEY'],
-      :region => ENV['AWS_REGION'],
-      :sqs_port => ENV['SQS_PORT'],
-      :use_ssl => ENV['SQS_SECURE'] != 'False',
-      :sqs_endpoint => ENV['SQS_ADDRESS']
+      access_key_id: ENV['AWS_ACCESS_ID'],
+      secret_access_key: ENV['AWS_ACCESS_KEY'],
+      region: ENV['AWS_REGION'],
+      sqs_port: ENV['SQS_PORT'],
+      use_ssl: ENV['SQS_SECURE'] != 'False',
+      sqs_endpoint: ENV['SQS_ADDRESS']
     )
 
     sqs = AWS::SQS.new
 
     begin
       queue = sqs.queues.named('search_engine_docs_to_crawl')
-    rescue AWS::SQS::Errors::NonExistentQueue => e
+    rescue AWS::SQS::Errors::NonExistentQueue
       sqs.queues.create('search_engine_docs_to_crawl')
       queue = sqs.queues.named('search_engine_docs_to_crawl')
     end
@@ -77,9 +76,9 @@ class UrlServer
       queue.send_message(doc.to_json)
 
       if doc[:status] == 'WIP'
-        @conn.exec_prepared('update_status_in_doc_index', [ 'WIP2', Time.now.to_i, doc[:doc_id] ])
+        @conn.exec_prepared('update_status_in_doc_index', ['WIP2', Time.now.to_i, doc[:doc_id]])
       else
-        @conn.exec_prepared('update_status_in_doc_index', [ 'WIP', Time.now.to_i, doc[:doc_id] ])
+        @conn.exec_prepared('update_status_in_doc_index', ['WIP', Time.now.to_i, doc[:doc_id]])
       end
 
       i += 1
@@ -91,8 +90,8 @@ $stdout.sync = true
 
 url_server = UrlServer.new
 
-while true do
-  docs = url_server.get_new_docs_to_crawl + url_server.get_docs_to_recrawl
+loop do
+  docs = url_server.new_docs_to_crawl + url_server.docs_to_recrawl
   url_server.send_docs_to_crawler(docs)
 
   sleep(0.1)

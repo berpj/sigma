@@ -1,7 +1,6 @@
 #!/usr/bin/ruby
 
 class Crawler
-
   $stdout.sync = true
   @conn = nil
 
@@ -20,23 +19,23 @@ class Crawler
     @conn.prepare('insert_doc_into_errors', 'insert into errors (doc_id, url, error, details) values ($1, $2, $3, $4)')
   end
 
-  def get_docs_to_crawl
+  def docs_to_crawl
     require 'aws-sdk-v1'
 
     AWS.config(
-      :access_key_id => ENV['AWS_ACCESS_ID'],
-      :secret_access_key => ENV['AWS_ACCESS_KEY'],
-      :region => ENV['AWS_REGION'],
-      :sqs_port => ENV['SQS_PORT'],
-      :use_ssl => ENV['SQS_SECURE'] != 'False',
-      :sqs_endpoint => ENV['SQS_ADDRESS']
+      access_key_id: ENV['AWS_ACCESS_ID'],
+      secret_access_key: ENV['AWS_ACCESS_KEY'],
+      region: ENV['AWS_REGION'],
+      sqs_port: ENV['SQS_PORT'],
+      use_ssl: ENV['SQS_SECURE'] != 'False',
+      sqs_endpoint: ENV['SQS_ADDRESS']
     )
 
     sqs = AWS::SQS.new
 
     begin
       queue = sqs.queues.named('search_engine_docs_to_crawl')
-    rescue AWS::SQS::Errors::NonExistentQueue => e
+    rescue AWS::SQS::Errors::NonExistentQueue
       sqs.queues.create('search_engine_docs_to_crawl')
       queue = sqs.queues.named('search_engine_docs_to_crawl')
     end
@@ -57,16 +56,16 @@ class Crawler
     require 'openssl'
 
     begin
-      raise ArgumentError, 'HTTP redirect too deep' if redirect_limit == 0
+      raise ArgumentError, 'HTTP redirect too deep' if redirect_limit.zero?
 
       url = URI.parse(url)
       http = Net::HTTP.new(url.host, url.port)
-      http.use_ssl = (url.scheme == "https")
+      http.use_ssl = (url.scheme == 'https')
 
-      head_response = http.head((url.path.empty?) ? ('/') : (url.path))
+      head_response = http.head((url.path.empty?) ? '/' : url.path)
 
-      raise Net::HTTPBadResponse, "No head receive" unless head_response['content-type']
-      raise Net::HTTPBadResponse, "Response not HTML but #{head_response['content-type']}" unless head_response['content-type'].start_with?('text/html') || head_response['content-type'].start_with?('application/xhtml+xml')
+      raise Net::HTTPBadResponse, 'No head receive' unless head_response['content-type']
+      raise Net::HTTPBadResponse, "Response not HTML but #{head_response['content-type']}" unless head_response['content-type'].start_with?('text/html', 'application/xhtml+xml')
 
       req = Net::HTTP::Get.new(url.request_uri)
 
@@ -85,7 +84,7 @@ class Crawler
 
     rescue NoMethodError, SocketError, OpenSSL::SSL::SSLError, ArgumentError, Errno::ECONNREFUSED, Timeout::Error, Errno::EINVAL, Errno::ECONNRESET, EOFError, Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError, Net::ProtocolError => e
       puts e.inspect
-      code = (defined? response && response != nil) ? (response.code) : (0)
+      code = defined? response && !response.nil? ? response.code : 0
       return url, nil, code.to_i, e.class
     end
   end
@@ -93,11 +92,11 @@ class Crawler
   def add_to_repository(doc_id, url, content)
     content = @conn.escape_bytea(content)
 
-    @conn.exec_prepared('insert_doc_into_repository', [ doc_id, url, content ])
+    @conn.exec_prepared('insert_doc_into_repository', [doc_id, url, content])
   end
 
   def add_to_errors(doc_id, url, code, error_details)
-    @conn.exec_prepared('insert_doc_into_errors', [ doc_id, url, code, error_details ])
+    @conn.exec_prepared('insert_doc_into_errors', [doc_id, url, code, error_details])
   end
 end
 
@@ -107,8 +106,8 @@ require 'work_queue'
 
 crawler = Crawler.new
 
-while true do
-  messages = crawler.get_docs_to_crawl + crawler.get_docs_to_crawl
+loop do
+  messages = crawler.docs_to_crawl + crawler.docs_to_crawl
 
   wq = WorkQueue.new 8
 
