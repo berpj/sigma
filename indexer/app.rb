@@ -27,20 +27,12 @@ class Indexer
 
     @redis = Redis.new(host: ENV['REDIS_ADDRESS'], port: ENV['REDIS_PORT'])
 
-    db_hostname = ENV['DB_HOSTNAME']
-    db_username = ENV['DB_USERNAME']
-    db_password = ENV['DB_PASSWORD']
-    db_name = ENV['DB_NAME']
-    db_port = ENV['DB_PORT']
-
-    @conn = PGconn.connect(db_hostname, db_port, '', '', db_name, db_username, db_password)
+    @conn = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
     @conn.prepare('update_doc_in_doc_index', 'update doc_index set title=$1::bytea, outgoing_links=$2, parsed_at=$3, status=$4, url=$5 WHERE doc_id=$6')
     @conn.prepare('insert_doc_into_doc_index', 'INSERT INTO doc_index (url) VALUES ($1) RETURNING *')
-
     @conn.prepare('delete_from_errors', 'DELETE FROM errors WHERE doc_id=$1')
     @conn.prepare('delete_from_doc_index', 'DELETE FROM doc_index WHERE doc_id=$1')
-
     @conn.prepare('select_timedout_in_doc_index', 'SELECT doc_id, url, status FROM doc_index WHERE status=\'WIP2\' AND sent_to_crawler_at<$1 LIMIT 512')
   end
 
@@ -74,10 +66,7 @@ class Indexer
     hrefs = []
 
     html.css("a").each do |a|
-      hrefs << a.attr('href').strip if ! a.attr('href').nil? &&
-      ! a.attr('href').empty? && (a.attr('href').start_with?('http')
-      || a.attr('href').start_with?('/')) && ! a.attr('href').match(/\s/)
-      && a.attr('href').ascii_only?
+      hrefs << a.attr('href').strip if ! a.attr('href').nil? && ! a.attr('href').empty? && (a.attr('href').start_with?('http') || a.attr('href').start_with?('/')) && ! a.attr('href').match(/\s/) && a.attr('href').ascii_only?
     end
 
     begin
@@ -186,11 +175,12 @@ loop do
 
     urls.each do |url|
       doc_id = resolver.get_doc_id(url) # Redis
-      unless doc_id
-        new_doc_id = tmp_indexer.add_to_index(url) # SQL insert
-        resolver.add_to_urls(url, new_doc_id) # Redis
-        indexer.add_to_links(doc[:doc_id], new_doc_id) # Redis
-      end
+
+      next if doc_id
+
+      new_doc_id = tmp_indexer.add_to_index(url) # SQL insert
+      resolver.add_to_urls(url, new_doc_id) # Redis
+      indexer.add_to_links(doc[:doc_id], new_doc_id) # Redis
     end
   end
 

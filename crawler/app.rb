@@ -4,23 +4,10 @@
 class Crawler
   $stdout.sync = true
   @conn = nil
+  @sqs = nil
 
   def initialize
     require 'pg'
-
-    db_hostname = ENV['DB_HOSTNAME']
-    db_username = ENV['DB_USERNAME']
-    db_password = ENV['DB_PASSWORD']
-    db_name = ENV['DB_NAME']
-    db_port = ENV['DB_PORT']
-
-    @conn = PGconn.connect(db_hostname, db_port, '', '', db_name, db_username, db_password)
-
-    @conn.prepare('insert_doc_into_repository', 'insert into repository (doc_id, url, content) values ($1, $2, $3::bytea)')
-    @conn.prepare('insert_doc_into_errors', 'insert into errors (doc_id, url, error, details) values ($1, $2, $3, $4)')
-  end
-
-  def docs_to_crawl
     require 'aws-sdk-v1'
 
     AWS.config(
@@ -32,20 +19,27 @@ class Crawler
       sqs_endpoint: ENV['SQS_ADDRESS']
     )
 
-    sqs = AWS::SQS.new
+    @sqs = AWS::SQS.new
 
+    @conn = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
+
+    @conn.prepare('insert_doc_into_repository', 'insert into repository (doc_id, url, content) values ($1, $2, $3::bytea)')
+    @conn.prepare('insert_doc_into_errors', 'insert into errors (doc_id, url, error, details) values ($1, $2, $3, $4)')
+  end
+
+  def docs_to_crawl
     begin
-      queue = sqs.queues.named('search_engine_docs_to_crawl')
+      queue = @sqs.queues.named('search_engine_docs_to_crawl')
     rescue AWS::SQS::Errors::NonExistentQueue
-      sqs.queues.create('search_engine_docs_to_crawl')
-      queue = sqs.queues.named('search_engine_docs_to_crawl')
+      @sqs.queues.create('search_engine_docs_to_crawl')
+      queue = @sqs.queues.named('search_engine_docs_to_crawl')
     end
 
     messages = queue.receive_messages(limit: 8)
 
     return nil if messages.nil?
 
-    messages.each { &:delete }
+    messages.each(&:delete)
 
     messages
   end
@@ -114,19 +108,19 @@ loop do
   wq = WorkQueue.new 8
 
   messages.each do |message|
-    doc = JSON.load(message.body)
+    doc = JSON.parse(message.body)
+
+    next if doc.nil? || doc['url'].nil?
 
     wq.enqueue_b do
       tmp_crawler = Crawler.new
 
-      unless doc.nil? || doc['url'].nil?
-        url, content, code, error_details = tmp_crawler.crawl_page(doc['url'])
+      url, content, code, error_details = tmp_crawler.crawl_page(doc['url'])
 
-        if content.nil? || url.nil? || code != 200
-          tmp_crawler.add_to_errors(doc['doc_id'], url, code, error_details)
-        else
-          tmp_crawler.add_to_repository(doc['doc_id'], url, content)
-        end
+      if content.nil? || url.nil? || code != 200
+        tmp_crawler.add_to_errors(doc['doc_id'], url, code, error_details)
+      else
+        tmp_crawler.add_to_repository(doc['doc_id'], url, content)
       end
     end
   end

@@ -3,20 +3,26 @@
 # Serves URLs to crawlers using a queue
 class UrlServer
   @conn = nil
+  @sqs = nil
 
   def initialize
     require 'pg'
+    require 'aws-sdk-v1'
 
-    db_hostname = ENV['DB_HOSTNAME']
-    db_username = ENV['DB_USERNAME']
-    db_password = ENV['DB_PASSWORD']
-    db_name = ENV['DB_NAME']
-    db_port = ENV['DB_PORT']
+    AWS.config(
+      access_key_id: ENV['AWS_ACCESS_ID'],
+      secret_access_key: ENV['AWS_ACCESS_KEY'],
+      region: ENV['AWS_REGION'],
+      sqs_port: ENV['SQS_PORT'],
+      use_ssl: ENV['SQS_SECURE'] != 'False',
+      sqs_endpoint: ENV['SQS_ADDRESS']
+    )
 
-    @conn = PGconn.connect(db_hostname, db_port, '', '', db_name, db_username, db_password)
+    @sqs = AWS::SQS.new
+
+    @conn = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
     @conn.prepare('update_status_in_doc_index', 'UPDATE doc_index SET status=$1, sent_to_crawler_at=$2 WHERE doc_id=$3')
-
     @conn.prepare('select_timedout_in_doc_index', 'SELECT doc_id, url, status FROM doc_index WHERE status=\'WIP\' AND (sent_to_crawler_at<$1 OR sent_to_crawler_at IS NULL) LIMIT 128')
   end
 
@@ -45,28 +51,16 @@ class UrlServer
   end
 
   def send_docs_to_crawler(docs)
-    require 'aws-sdk-v1'
     require 'json'
 
-    AWS.config(
-      access_key_id: ENV['AWS_ACCESS_ID'],
-      secret_access_key: ENV['AWS_ACCESS_KEY'],
-      region: ENV['AWS_REGION'],
-      sqs_port: ENV['SQS_PORT'],
-      use_ssl: ENV['SQS_SECURE'] != 'False',
-      sqs_endpoint: ENV['SQS_ADDRESS']
-    )
-
-    sqs = AWS::SQS.new
-
     begin
-      queue = sqs.queues.named('search_engine_docs_to_crawl')
+      queue = @sqs.queues.named('search_engine_docs_to_crawl')
     rescue AWS::SQS::Errors::NonExistentQueue
-      sqs.queues.create('search_engine_docs_to_crawl')
-      queue = sqs.queues.named('search_engine_docs_to_crawl')
+      @sqs.queues.create('search_engine_docs_to_crawl')
+      queue = @sqs.queues.named('search_engine_docs_to_crawl')
     end
 
-    queue = sqs.queues.named('search_engine_docs_to_crawl')
+    queue = @sqs.queues.named('search_engine_docs_to_crawl')
 
     approximate_number_of_messages = queue.approximate_number_of_messages
 

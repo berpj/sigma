@@ -27,13 +27,20 @@ In active development: https://github.com/berpj/sigma/projects/2
 *To write*
 
 
-### Setup & development
+### Setup
 
     git clone https://github.com/berpj/sigma.git
     cd sigma
-    docker-compose up
+    docker-compose build
+    docker-compose up -d db-development redis-development sqs-development # Start DB, Redis and SQS first
+    docker-compose up -d
 
 This last command is going to pull somes images, and build the others. Then it's running: go to http://localhost
+
+
+### Development
+
+*To write*
 
 
 ### Deployment

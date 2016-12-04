@@ -12,13 +12,7 @@ class PageRank
 
     @redis = Redis.new(host: ENV['REDIS_ADDRESS'], port: ENV['REDIS_PORT'])
 
-    db_hostname = ENV['DB_HOSTNAME']
-    db_username = ENV['DB_USERNAME']
-    db_password = ENV['DB_PASSWORD']
-    db_name = ENV['DB_NAME']
-    db_port = ENV['DB_PORT']
-
-    @conn = PGconn.connect(db_hostname, db_port, '', '', db_name, db_username, db_password)
+    @conn = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
   end
 
   def get_backlinks(doc_id)
