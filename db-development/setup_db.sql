@@ -6,7 +6,7 @@ CREATE DATABASE search_engine owner postgres;
 CREATE TABLE repository(
   doc_id bigserial,
   url text,
-  content bytea
+  content text
 );
 CREATE INDEX repository_doc_id ON repository USING btree (doc_id);
 
@@ -21,7 +21,7 @@ CREATE INDEX errors_doc_id_from ON errors USING btree (doc_id);
 CREATE TABLE doc_index (
   doc_id bigserial primary key,
   url text,
-  title bytea,
+  title text,
   outgoing_links  integer,
   status varchar(4),
   parsed_at integer,
