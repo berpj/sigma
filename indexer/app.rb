@@ -83,7 +83,7 @@ class Indexer
       url.split('#')[0]
     end
 
-    return title, urls.uniq.first(100)
+    return title, urls.uniq.first(200)
   end
 
   def parse_words(title, doc)
@@ -92,17 +92,20 @@ class Indexer
 
     I18n.config.available_locales = :en
 
-    doc = Nokogiri::HTML("#{title} #{doc[:content]}")
+    doc = Nokogiri::HTML(doc[:content])
 
     doc.css('head, script, link').each { |node| node.remove unless node.nil? } # Remove useless html nodes
-    text = doc.css('body').text.tr("\n", ' ').downcase # Normalize text
+    text = doc.css('body').text
+
+    text = "#{title} #{text}"
+    text = text.tr("\n", ' ').downcase # Normalize text
     words = text.split(/\W+/) # Text to array of words
 
     result = []
     words_count = words.count
     position = 0
     words.each do |word|
-      result << { word: word, position: (position / words_count.to_f).round(5) }
+      result << { word: word, position: (1. - (position / words_count.to_f)).round(5) }
       position += 1
     end
 
@@ -126,7 +129,7 @@ class Indexer
 
   def add_to_words(words, doc_id)
     words.each do |word|
-      @redis.zadd("words_#{word[:word]}", word[:position], doc_id)
+      @redis.zadd("words_#{word[:word]}", word[:position], doc_id, {nx: true})
     end
   end
 
@@ -172,13 +175,15 @@ loop do
     indexer.add_to_words(words, doc[:doc_id]) # Redis
 
     urls.each do |url|
-      doc_id = resolver.doc_id(url) # Redis
+      new_doc_id = resolver.doc_id(url) # Is this URL already in doc_index? (Redis)
 
-      next if doc_id
+      # If this is a new URL...
+      unless new_doc_id
+        new_doc_id = tmp_indexer.add_to_index(url) # Add to doc_index (SQL insert)
+        resolver.add_to_urls(url, new_doc_id) # Add to URLs index (Redis)
+      end
 
-      new_doc_id = tmp_indexer.add_to_index(url) # SQL insert
-      resolver.add_to_urls(url, new_doc_id) # Redis
-      indexer.add_to_links(doc[:doc_id], new_doc_id) # Redis
+      indexer.add_to_links(doc[:doc_id], new_doc_id) # Add to links index for Pageranker (Redis)
     end
   end
 
