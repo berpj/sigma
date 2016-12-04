@@ -12,7 +12,7 @@ class Resolver
     @redis.set("urls_#{url}", doc_id)
   end
 
-  def get_doc_id(url)
+  def doc_id(url)
     @redis.get("urls_#{url}")
   end
 end
@@ -36,7 +36,7 @@ class Indexer
     @conn.prepare('select_timedout_in_doc_index', 'SELECT doc_id, url, status FROM doc_index WHERE status=\'WIP2\' AND sent_to_crawler_at<$1 LIMIT 512')
   end
 
-  def get_new_docs_from_repository
+  def new_docs_from_repository
     res = @conn.exec('SELECT doc_id, url, encode(content, \'escape\') AS content
       FROM repository
       WHERE doc_id IN (
@@ -162,7 +162,7 @@ resolver = Resolver.new
 loop do
   indexer.delete_error_docs
 
-  docs = indexer.get_new_docs_from_repository
+  docs = indexer.new_docs_from_repository
 
   docs.each do |doc|
     tmp_indexer = Indexer.new
@@ -174,7 +174,7 @@ loop do
     indexer.add_to_words(words, doc[:doc_id]) # Redis
 
     urls.each do |url|
-      doc_id = resolver.get_doc_id(url) # Redis
+      doc_id = resolver.doc_id(url) # Redis
 
       next if doc_id
 
