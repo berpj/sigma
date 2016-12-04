@@ -1,5 +1,6 @@
 #!/usr/bin/ruby
 
+# Serves URLs to crawlers using a queue
 class UrlServer
   @conn = nil
 

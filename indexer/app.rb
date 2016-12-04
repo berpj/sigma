@@ -1,5 +1,6 @@
 #!/usr/bin/ruby
 
+# Resolve URLS
 class Resolver
   def initialize
     require 'redis'
@@ -16,6 +17,7 @@ class Resolver
   end
 end
 
+# Get new documents from the repository, parse them, index them
 class Indexer
   @conn = nil
 
@@ -72,7 +74,10 @@ class Indexer
     hrefs = []
 
     html.css("a").each do |a|
-      hrefs << a.attr('href').strip if ! a.attr('href').nil? && ! a.attr('href').empty? && (a.attr('href').start_with?('http') || a.attr('href').start_with?('/')) && ! a.attr('href').match(/\s/) && a.attr('href').ascii_only?
+      hrefs << a.attr('href').strip if ! a.attr('href').nil? &&
+      ! a.attr('href').empty? && (a.attr('href').start_with?('http')
+      || a.attr('href').start_with?('/')) && ! a.attr('href').match(/\s/)
+      && a.attr('href').ascii_only?
     end
 
     begin
@@ -188,6 +193,6 @@ loop do
       end
     end
   end
-  
+
   sleep(0.1)
 end

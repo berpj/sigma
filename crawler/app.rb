@@ -1,5 +1,6 @@
 #!/usr/bin/ruby
 
+# Crawls web pages
 class Crawler
   $stdout.sync = true
   @conn = nil
@@ -44,9 +45,7 @@ class Crawler
 
     return nil if messages.nil?
 
-    messages.each do |message|
-      message.delete
-    end
+    messages.each { &:delete }
 
     messages
   end
@@ -62,7 +61,7 @@ class Crawler
       http = Net::HTTP.new(url.host, url.port)
       http.use_ssl = (url.scheme == 'https')
 
-      head_response = http.head((url.path.empty?) ? '/' : url.path)
+      head_response = http.head url.path.empty? ? '/' : url.path
 
       raise Net::HTTPBadResponse, 'No head receive' unless head_response['content-type']
       raise Net::HTTPBadResponse, "Response not HTML but #{head_response['content-type']}" unless head_response['content-type'].start_with?('text/html', 'application/xhtml+xml')
@@ -82,7 +81,10 @@ class Crawler
         raise Net::HTTPBadResponse, 'HTTP bad response'
       end
 
-    rescue NoMethodError, SocketError, OpenSSL::SSL::SSLError, ArgumentError, Errno::ECONNREFUSED, Timeout::Error, Errno::EINVAL, Errno::ECONNRESET, EOFError, Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError, Net::ProtocolError => e
+    rescue  NoMethodError, SocketError, OpenSSL::SSL::SSLError, ArgumentError,
+            Errno::ECONNREFUSED, Timeout::Error, Errno::EINVAL,
+            Errno::ECONNRESET, EOFError, Net::HTTPBadResponse,
+            Net::HTTPHeaderSyntaxError, Net::ProtocolError => e
       puts e.inspect
       code = defined? response && !response.nil? ? response.code : 0
       return url, nil, code.to_i, e.class

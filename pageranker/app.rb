@@ -1,5 +1,6 @@
 #!/usr/bin/ruby
 
+# Compute pageranks
 class PageRank
   @conn = nil
 
