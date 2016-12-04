@@ -2,7 +2,7 @@
 
 **Web-Scale Search Engine Made From Scratch**
 
-In active development: https://trello.com/b/GQWSoSuV/search-engine
+In active development: https://github.com/berpj/sigma/projects/2
 
 ### Features
 
