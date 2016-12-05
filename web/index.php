@@ -72,7 +72,7 @@
       $results = Array();
 
       // Get top doc_ids for this query from Redis
-      $doc_ids = $redis->zRevRange("words_$query", 0, 7, true);
+      $doc_ids = $redis->zRevRange("words_$query", 0, 32, true);
 
       if (! is_array($doc_ids)) {
         $doc_ids = Array();
@@ -108,7 +108,9 @@
 
       $time_end = microtime(true);
 
+      $i = 0;
       foreach ($results as $key => $value) {
+        if ($i++ == 8) break;
         echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['url'] . ' <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
       }
       if (!$results) {
