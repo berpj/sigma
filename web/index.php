@@ -7,8 +7,13 @@
 
   $pg = pg_connect("host=$db_hostname port=$db_port dbname=$db_name user=$db_username password=$db_password") or die ("Could not connect to server\n");
 
-  error_reporting(E_ALL);
-  ini_set('display_errors', 1);
+  if (getenv('SHOW_ERRORS') == 'True') {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+  } else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+  }
 ?>
 
 <!DOCTYPE html>
@@ -54,29 +59,47 @@
 
   <div id="results">
   <?php
-    if (isset($_GET['q']) && $_GET['q'] != '') {
+    if (isset($_GET['q']) && trim($_GET['q']) != '') {
       $time_start = microtime(true);
 
-      $query = explode(' ', $_GET['q'])[0];
+      $keywords = explode(' ', trim($_GET['q']));
 
-      $query = strtolower($query);
-      setlocale(LC_CTYPE, 'en_US.UTF-8');
-      $query = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $query);
+      // Get the top 1000 docs for each keyword
+      $tmp_results_array = Array();
 
-      $redis_address = getenv('REDIS_ADDRESS');
-      $redis_port = getenv('REDIS_PORT');
+      $i = 0;
+      foreach ($keywords as $keyword) {
+        if ($i++ == 16) break; //max number of keywords
 
-      $redis = new Redis();
-      $redis->connect($redis_address, $redis_port, 2);
-
-      $results = Array();
-
-      // Get top doc_ids for this query from Redis
-      $doc_ids = $redis->zRevRange("words_$query", 0, 32, true);
-
-      if (! is_array($doc_ids)) {
         $doc_ids = Array();
+
+        $keyword = trim(strtolower($keyword));
+        setlocale(LC_CTYPE, 'en_US.UTF-8');
+        $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
+
+        if ($keyword == '') continue;
+
+        $redis_address = getenv('REDIS_ADDRESS');
+        $redis_port = getenv('REDIS_PORT');
+
+        $redis = new Redis();
+        $redis->connect($redis_address, $redis_port, 2);
+
+        $results = Array();
+
+        // Get top doc_ids for this keyword from Redis
+        $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
+
+        $tmp_results_array[] = $doc_ids;
       }
+
+      $doc_ids = $tmp_results_array[0];
+
+      for ($i = 1; $i < count($tmp_results_array); $i++) {
+        $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
+      }
+
+      //array_intersect()
 
       // Get pageranks for these doc_ids from Redis
       foreach ($doc_ids as $key => $value) {
@@ -84,6 +107,11 @@
 
         $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position' => $value, 'url' => null, 'title' => null);
       }
+
+      // Order by score
+      uasort($results, function($a, $b) { //or usort?
+        return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
+      });
 
       // Get metadata for these doc_ids from PG
       foreach ($results as $key => $value) {
@@ -97,11 +125,6 @@
         $results[$key]['url'] = $url;
         $results[$key]['title'] = $title;
       }
-
-      // Order by score
-      uasort($results, function($a, $b) { //or usort?
-        return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
-      });
 
       // Print results
       $results = array_slice($results, 0, 16);
