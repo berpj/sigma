@@ -57,26 +57,41 @@
     if (isset($_GET['q']) && $_GET['q'] != '') {
       $time_start = microtime(true);
 
-      $query = explode(' ', $_GET['q'])[0];
+      $keywords = explode(' ', trim($_GET['q']));
 
-      $query = strtolower($query);
-      setlocale(LC_CTYPE, 'en_US.UTF-8');
-      $query = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $query);
+      // Get the top 1000 docs for each keyword
+      $tmp_results_array = Array();
 
-      $redis_address = getenv('REDIS_ADDRESS');
-      $redis_port = getenv('REDIS_PORT');
+      foreach ($keywords as $keyword) {
+        $keyword = trim(strtolower($keyword));
+        setlocale(LC_CTYPE, 'en_US.UTF-8');
+        $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
 
-      $redis = new Redis();
-      $redis->connect($redis_address, $redis_port, 2);
+        $redis_address = getenv('REDIS_ADDRESS');
+        $redis_port = getenv('REDIS_PORT');
 
-      $results = Array();
+        $redis = new Redis();
+        $redis->connect($redis_address, $redis_port, 2);
 
-      // Get top doc_ids for this query from Redis
-      $doc_ids = $redis->zRevRange("words_$query", 0, 32, true);
+        $results = Array();
 
-      if (! is_array($doc_ids)) {
-        $doc_ids = Array();
+        // Get top doc_ids for this keyword from Redis
+        $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
+
+        if (! is_array($doc_ids)) {
+          $doc_ids = Array();
+        }
+
+        $tmp_results_array[] = $doc_ids;
       }
+
+      $doc_ids = $tmp_results_array[0];
+
+      for ($i = 1; $i < count($tmp_results_array); $i++) {
+        $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
+      }
+
+      //array_intersect()
 
       // Get pageranks for these doc_ids from Redis
       foreach ($doc_ids as $key => $value) {
@@ -84,6 +99,11 @@
 
         $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position' => $value, 'url' => null, 'title' => null);
       }
+
+      // Order by score
+      uasort($results, function($a, $b) { //or usort?
+        return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
+      });
 
       // Get metadata for these doc_ids from PG
       foreach ($results as $key => $value) {
@@ -97,11 +117,6 @@
         $results[$key]['url'] = $url;
         $results[$key]['title'] = $title;
       }
-
-      // Order by score
-      uasort($results, function($a, $b) { //or usort?
-        return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
-      });
 
       // Print results
       $results = array_slice($results, 0, 16);
