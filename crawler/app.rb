@@ -50,7 +50,6 @@ class Crawler
 
     begin
       raise ArgumentError, 'HTTP redirect too deep' if redirect_limit.zero?
-
       url = URI.parse(url)
       http = Net::HTTP.new(url.host, url.port)
       http.use_ssl = (url.scheme == 'https')
@@ -68,8 +67,10 @@ class Crawler
       when Net::HTTPSuccess
         raise Net::HTTPBadResponse, 'Body nil' if response.body.nil?
 
-        return url, response.body.force_encoding("UTF-8"), response.code.to_i, nil
+        puts "SUCCESS #{URI.unescape(url.to_s.force_encoding("UTF-8"))}"
+        return URI.unescape(url.to_s.force_encoding("UTF-8")), response.body.force_encoding("UTF-8"), response.code.to_i, nil
       when Net::HTTPRedirection
+        puts "   redirecting from #{url} to #{response.header['location']}"
         return crawl_page(response.header['location'], redirect_limit - 1)
       else
         raise Net::HTTPBadResponse, 'HTTP bad response'
@@ -79,9 +80,9 @@ class Crawler
             Errno::ECONNREFUSED, Timeout::Error, Errno::EINVAL,
             Errno::ECONNRESET, EOFError, Net::HTTPBadResponse,
             Net::HTTPHeaderSyntaxError, Net::ProtocolError => e
-      puts e.inspect
+      puts "#{url} #{e.inspect}"
       code = defined? response && !response.nil? ? response.code : 0
-      return url, nil, code.to_i, e.class
+      return URI.unescape(url.to_s.force_encoding("UTF-8")), nil, code.to_i, e.class
     end
   end
 
@@ -112,6 +113,8 @@ loop do
 
     wq.enqueue_b do
       tmp_crawler = Crawler.new
+
+      doc['url'] = URI.escape(doc['url'])
 
       url, content, code, error_details = tmp_crawler.crawl_page(doc['url'])
 

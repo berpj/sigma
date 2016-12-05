@@ -109,7 +109,7 @@
       $time_end = microtime(true);
 
       foreach ($results as $key => $value) {
-        echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['url'] . ' <span class="text-muted">(score: ' . round($value['position'] + $value['pagerank'], 3) . ')</span><br><br>';
+        echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['url'] . ' <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
       }
       if (!$results) {
         echo 'No result<br>';
