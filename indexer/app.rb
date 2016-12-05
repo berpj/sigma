@@ -72,7 +72,9 @@ class Indexer
     begin
       urls = []
       hrefs.each do |href|
-        urls << URI.unescape(URI.join(doc[:url], href).to_s.force_encoding("UTF-8"))
+        url = URI.unescape(URI.join(doc[:url], href).to_s.force_encoding("UTF-8"))
+        url = url.encode("UTF-8", 'binary', invalid: :replace, undef: :replace, replace: '') unless url.valid_encoding?
+        urls << url
       end
     rescue URI::InvalidURIError
       return title, []
