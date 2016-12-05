@@ -7,8 +7,13 @@
 
   $pg = pg_connect("host=$db_hostname port=$db_port dbname=$db_name user=$db_username password=$db_password") or die ("Could not connect to server\n");
 
-  error_reporting(E_ALL);
-  ini_set('display_errors', 1);
+  if (getenv('SHOW_ERRORS') == 'True') {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+  } else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+  }
 ?>
 
 <!DOCTYPE html>
@@ -54,7 +59,7 @@
 
   <div id="results">
   <?php
-    if (isset($_GET['q']) && $_GET['q'] != '') {
+    if (isset($_GET['q']) && trim($_GET['q']) != '') {
       $time_start = microtime(true);
 
       $keywords = explode(' ', trim($_GET['q']));
@@ -62,10 +67,17 @@
       // Get the top 1000 docs for each keyword
       $tmp_results_array = Array();
 
+      $i = 0;
       foreach ($keywords as $keyword) {
+        if ($i++ == 16) break; //max number of keywords
+
+        $doc_ids = Array();
+
         $keyword = trim(strtolower($keyword));
         setlocale(LC_CTYPE, 'en_US.UTF-8');
         $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
+
+        if ($keyword == '') continue;
 
         $redis_address = getenv('REDIS_ADDRESS');
         $redis_port = getenv('REDIS_PORT');
@@ -77,10 +89,6 @@
 
         // Get top doc_ids for this keyword from Redis
         $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
-
-        if (! is_array($doc_ids)) {
-          $doc_ids = Array();
-        }
 
         $tmp_results_array[] = $doc_ids;
       }

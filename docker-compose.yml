@@ -85,6 +85,7 @@ web:
     - SQS_SECURE=False
     - SQS_ADDRESS=sqs-development
     - SQS_PORT=9494
+    - SHOW_ERRORS=True
   ports:
     - "80:80"
   links:
