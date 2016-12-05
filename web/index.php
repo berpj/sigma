@@ -99,8 +99,6 @@
         $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
       }
 
-      //array_intersect()
-
       // Get pageranks for these doc_ids from Redis
       foreach ($doc_ids as $key => $value) {
         $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
@@ -112,6 +110,9 @@
       uasort($results, function($a, $b) { //or usort?
         return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
       });
+      
+      // Only keep the first 8 elements
+      $results = array_slice($results, 0, 7);
 
       // Get metadata for these doc_ids from PG
       foreach ($results as $key => $value) {
@@ -133,7 +134,6 @@
 
       $i = 0;
       foreach ($results as $key => $value) {
-        if ($i++ == 8) break;
         echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['url'] . ' <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
       }
       if (!$results) {
