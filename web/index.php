@@ -38,6 +38,7 @@
     }
     #results {
       margin-bottom: 60px;
+      word-break: break-all;
     }
     #footer {
       margin-top: 30px;
@@ -49,143 +50,151 @@
   </style>
 </head>
 <body>
-  <h1>&Sigma;</h1>
+  <div class="container">
+    <h1>&Sigma;</h1>
 
-  <div id="query">
-    <form action="/">
-      <input type="text" name="q" autofocus="autofocus" class="form-control" style="width: 450px; margin: auto" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
-    </form>
-  </div>
+    <div class="row">
+      <div id="query" class="col-md-8 offset-md-2">
+        <form action="/">
+          <input type="text" name="q" autofocus="autofocus" class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
+        </form>
+      </div>
+    </div>
 
-  <div id="results">
-  <?php
-    if (isset($_GET['q']) && trim($_GET['q']) != '') {
-      $time_start = microtime(true);
+    <div class="row">
+      <div id="results" class="col-md-8 offset-md-2">
+      <?php
+        if (isset($_GET['q']) && trim($_GET['q']) != '') {
+          $time_start = microtime(true);
 
-      $keywords = explode(' ', trim($_GET['q']));
+          $keywords = explode(' ', trim($_GET['q']));
 
-      // Get the top 1000 docs for each keyword
-      $tmp_results_array = Array();
+          // Get the top 1000 docs for each keyword
+          $tmp_results_array = Array();
 
-      $i = 0;
-      foreach ($keywords as $keyword) {
-        if ($i++ == 16) break; //max number of keywords
+          $i = 0;
+          foreach ($keywords as $keyword) {
+            if ($i++ == 16) break; //max number of keywords
 
-        $doc_ids = Array();
+            $doc_ids = Array();
 
-        $keyword = trim(strtolower($keyword));
-        setlocale(LC_CTYPE, 'en_US.UTF-8');
-        $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
+            $keyword = trim(strtolower($keyword));
+            setlocale(LC_CTYPE, 'en_US.UTF-8');
+            $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
 
-        if ($keyword == '') continue;
+            if ($keyword == '') continue;
 
-        $redis_address = getenv('REDIS_ADDRESS');
-        $redis_port = getenv('REDIS_PORT');
+            $redis_address = getenv('REDIS_ADDRESS');
+            $redis_port = getenv('REDIS_PORT');
 
-        $redis = new Redis();
-        $redis->connect($redis_address, $redis_port, 2);
+            $redis = new Redis();
+            $redis->connect($redis_address, $redis_port, 2);
 
-        $results = Array();
+            $results = Array();
 
-        // Get top doc_ids for this keyword from Redis
-        $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
+            // Get top doc_ids for this keyword from Redis
+            $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
 
-        $tmp_results_array[] = $doc_ids;
-      }
+            $tmp_results_array[] = $doc_ids;
+          }
 
-      $doc_ids = $tmp_results_array[0];
+          $doc_ids = $tmp_results_array[0];
 
-      for ($i = 1; $i < count($tmp_results_array); $i++) {
-        $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
-      }
+          for ($i = 1; $i < count($tmp_results_array); $i++) {
+            $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
+          }
 
-      // Get pageranks for these doc_ids from Redis
-      foreach ($doc_ids as $key => $value) {
-        $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
+          // Get pageranks for these doc_ids from Redis
+          foreach ($doc_ids as $key => $value) {
+            $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
 
-        $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position' => $value, 'url' => null, 'title' => null);
-      }
+            $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position' => $value, 'url' => null, 'title' => null);
+          }
 
-      // Order by score
-      uasort($results, function($a, $b) { //or usort?
-        return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
-      });
-      
-      // Only keep the first 8 elements
-      $results = array_slice($results, 0, 7);
+          // Order by score
+          uasort($results, function($a, $b) { //or usort?
+            return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
+          });
 
-      // Get metadata for these doc_ids from PG
-      foreach ($results as $key => $value) {
-        $query = "SELECT url, title FROM doc_index WHERE doc_id=$value[doc_id]";
-        $rs = pg_query($pg, $query) or die("Error\n");
-        $row = pg_fetch_row($rs);
+          // Only keep the first 8 elements
+          $results = array_slice($results, 0, 7);
 
-        $url = $row[0];
-        $title = $row[1];
+          // Get metadata for these doc_ids from PG
+          foreach ($results as $key => $value) {
+            $query = "SELECT url, title FROM doc_index WHERE doc_id=$value[doc_id]";
+            $rs = pg_query($pg, $query) or die("Error\n");
+            $row = pg_fetch_row($rs);
 
-        $results[$key]['url'] = $url;
-        $results[$key]['title'] = $title;
-      }
+            $url = $row[0];
+            $title = $row[1];
 
-      // Print results
-      $results = array_slice($results, 0, 16);
+            $results[$key]['url'] = $url;
+            $results[$key]['title'] = $title;
+          }
 
-      $time_end = microtime(true);
+          // Print results
+          $results = array_slice($results, 0, 16);
 
-      $i = 0;
-      foreach ($results as $key => $value) {
-        echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['url'] . ' <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
-      }
-      if (!$results) {
-        echo 'No result<br>';
-      }
+          $time_end = microtime(true);
 
-      $redis->close();
+          $i = 0;
+          foreach ($results as $key => $value) {
+            echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['url'] . ' <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
+          }
+          if (!$results) {
+            echo 'No result<br>';
+          }
 
-      echo '<br><p class="text-muted">Query time: ' . (round($time_end - $time_start, 3)) . 's</p>';
-    }
-  ?>
-  </div>
+          $redis->close();
 
-  <div id="stats">
-    <?php
-      function nice_number($n) {
-          $n = (0+str_replace(",", "", $n));
+          echo '<br><p class="text-muted">Query time: ' . (round($time_end - $time_start, 3)) . 's</p>';
+        }
+      ?>
+      </div>
+    </div>
 
-          if (!is_numeric($n)) return false;
-          elseif ($n > 1000000) return round(($n / 1000000), 1) . 'M';
-          elseif ($n > 1000) return round(($n / 1000), 0) . 'k';
+    <div class="row">
+      <div id="stats" class="col-md-8 offset-md-2">
+        <?php
+          function nice_number($n) {
+              $n = (0+str_replace(",", "", $n));
 
-          return number_format($n);
-      }
+              if (!is_numeric($n)) return false;
+              elseif ($n > 1000000) return round(($n / 1000000), 1) . 'M';
+              elseif ($n > 1000) return round(($n / 1000), 0) . 'k';
 
-      $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.doc_index'::regclass;";
-      $rs = pg_query($pg, $query) or die("Error\n");
-      $row = pg_fetch_row($rs);
+              return number_format($n);
+          }
 
-      echo  "<strong>Pages indexed:</strong> " . nice_number($row[0]) . "<br>";
+          $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.doc_index'::regclass;";
+          $rs = pg_query($pg, $query) or die("Error\n");
+          $row = pg_fetch_row($rs);
 
-
-      $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.repository'::regclass;";
-      $rs = pg_query($pg, $query) or die("Error\n");
-      $row = pg_fetch_row($rs);
-
-      echo  "<strong>Pages crawled:</strong> " . nice_number($row[0]) . "<br>";
+          echo  "<strong>Pages indexed:</strong> " . nice_number($row[0]) . "<br>";
 
 
-      $query = "SELECT COUNT(*) FROM doc_index WHERE status='OK' AND parsed_at > ROUND(extract(epoch from now())) - 120";
-      $rs = pg_query($pg, $query) or die("Error\n");
-      $row = pg_fetch_row($rs);
+          $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.repository'::regclass;";
+          $rs = pg_query($pg, $query) or die("Error\n");
+          $row = pg_fetch_row($rs);
 
-      echo  "<strong>Crawling speed:</strong> " . round($row[0] / 120, 1) . "/s<br>";
+          echo  "<strong>Pages crawled:</strong> " . nice_number($row[0]) . "<br>";
 
-      pg_close($pg);
-    ?>
-  </p>
 
-  <div id="footer">
-    Not a search engine - Code available on <a href="https://github.com/berpj/sigma" target="_blank"><i class="fa fa-github"></i> Github</a><br>
-    v0.4
+          $query = "SELECT COUNT(*) FROM doc_index WHERE status='OK' AND parsed_at > ROUND(extract(epoch from now())) - 120";
+          $rs = pg_query($pg, $query) or die("Error\n");
+          $row = pg_fetch_row($rs);
+
+          echo  "<strong>Crawling speed:</strong> " . round($row[0] / 120, 1) . "/s<br>";
+
+          pg_close($pg);
+        ?>
+      </div>
+    </div>
+
+    <div id="footer">
+      Not a search engine - Code available on <a href="https://github.com/berpj/sigma" target="_blank"><i class="fa fa-github"></i> Github</a><br>
+      v0.4
+    </div>
   </div>
 </body>
 </html>
