@@ -1,7 +1,5 @@
 # Crawls web pages
-class Crawler
-  attr_reader :db, :sqs, :docs_to_crawl
-
+class Crawl
   def initialize()
     require 'pg'
     require 'aws-sdk-v1'
@@ -44,6 +42,24 @@ class Crawler
       message.delete
     end
   end
+
+  def start
+    @docs_to_crawl.each do |doc|
+      url, content, code, error_details = crawl_url doc['url']
+
+      if content.nil? || url.nil? || code != 200
+        add_to_errors(doc['doc_id'], url, code, error_details)
+      else
+        add_to_repository(doc['doc_id'], url, content)
+      end
+    end
+  end
+
+  def close
+    @db.close
+  end
+
+  private
 
   def crawl_url(url, redirect_limit = 10)
     require 'net/http'
@@ -92,19 +108,5 @@ class Crawler
 
   def add_to_errors(doc_id, url, code, error_details)
     @db.exec_prepared('insert_doc_into_errors', [doc_id, url, code, error_details])
-  end
-
-  def start
-    set_docs_to_crawl
-
-    @docs_to_crawl.each do |doc|
-      url, content, code, error_details = crawl_url doc['url']
-
-      if content.nil? || url.nil? || code != 200
-        add_to_errors(doc['doc_id'], url, code, error_details)
-      else
-        add_to_repository(doc['doc_id'], url, content)
-      end
-    end
   end
 end
