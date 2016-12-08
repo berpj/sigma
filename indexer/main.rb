@@ -18,7 +18,5 @@ loop do
 
   wq.join
 
-  #GC.start if
-
   sleep(0.5)
 end

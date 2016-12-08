@@ -11,7 +11,7 @@ class Index
 
     @db = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
-    @db.prepare('update_doc_in_doc_index', 'update doc_index set title=$1, outgoing_links=$2, parsed_at=$3, status=$4, url=$5 WHERE doc_id=$6')
+    @db.prepare('update_doc_in_doc_index', 'update doc_index set title=$1, description=$2, outgoing_links=$3, parsed_at=$4, status=$5, url=$6 WHERE doc_id=$7')
     @db.prepare('insert_doc_into_doc_index', 'INSERT INTO doc_index (url) VALUES ($1) RETURNING *')
     @db.prepare('delete_from_errors', 'DELETE FROM errors WHERE doc_id=$1')
     @db.prepare('delete_from_doc_index', 'DELETE FROM doc_index WHERE doc_id=$1')
@@ -36,14 +36,18 @@ class Index
   end
 
   def start
-    parse = Parse.new
     resolv = Resolv.new
 
     @docs_to_index.each do |doc|
-      title, urls = parse.parse_links(doc)
-      words = parse.parse_words(title, doc)
+      parse = Parse.new(doc)
 
-      update_index(doc[:doc_id], title, urls.count, Time.now.to_i, doc[:url]) # SQL update
+      parse.start
+      urls = parse.urls
+      title = parse.title
+      description = parse.description
+      words = parse.words
+
+      update_index(doc[:doc_id], title, description, urls.count, Time.now.to_i, doc[:url]) # SQL update
       add_to_words(words, doc[:doc_id]) # Redis
 
       urls.each do |url|
@@ -85,10 +89,8 @@ class Index
 
   private
 
-  def update_index(doc_id, title, outgoing_links, parsed_at, url)
-    @db.exec_prepared('update_doc_in_doc_index', [title, outgoing_links, parsed_at, 'OK', url, doc_id])
-
-    doc_id
+  def update_index(doc_id, title, description, outgoing_links, parsed_at, url)
+    @db.exec_prepared('update_doc_in_doc_index', [title, description, outgoing_links, parsed_at, 'OK', url, doc_id])
   end
 
   def add_to_index(url)
@@ -102,7 +104,7 @@ class Index
 
   def add_to_words(words, doc_id)
     words.each do |word|
-      @redis.zadd("words_#{word[:word]}", word[:position], doc_id, {nx: true})
+      @redis.zadd("words_#{word[:word]}", word[:position], doc_id, nx: true)
     end
   end
 end

@@ -22,6 +22,7 @@ CREATE TABLE doc_index (
   doc_id bigserial primary key,
   url text,
   title text,
+  description text,
   outgoing_links  integer,
   status varchar(4),
   parsed_at integer,

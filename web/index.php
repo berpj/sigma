@@ -31,6 +31,7 @@
   <style>
     h1 {
       font-size: 3.6em;
+      text-align: center;
     }
     #query {
       margin-top: 40px;
@@ -44,7 +45,6 @@
       margin-top: 30px;
     }
     body {
-      text-align: center;
       margin: 30px;
     }
   </style>
@@ -121,15 +121,22 @@
 
           // Get metadata for these doc_ids from PG
           foreach ($results as $key => $value) {
-            $query = "SELECT url, title FROM doc_index WHERE doc_id=$value[doc_id]";
+            $query = "SELECT url, title, description FROM doc_index WHERE doc_id=$value[doc_id]";
             $rs = pg_query($pg, $query) or die("Error\n");
             $row = pg_fetch_row($rs);
 
             $url = $row[0];
             $title = $row[1];
+            $description = $row[2];
 
             $results[$key]['url'] = $url;
             $results[$key]['title'] = $title;
+            if ($description) {
+              $results[$key]['description'] = $description;
+            }
+            else {
+              $results[$key]['description'] = 'No description';
+            }
           }
 
           // Print results
@@ -139,7 +146,7 @@
 
           $i = 0;
           foreach ($results as $key => $value) {
-            echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['url'] . ' <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
+            echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span><br><span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
           }
           if (!$results) {
             echo 'No result<br>';

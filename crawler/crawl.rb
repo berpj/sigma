@@ -1,6 +1,6 @@
 # Crawls web pages
 class Crawl
-  def initialize()
+  def initialize
     require 'pg'
     require 'aws-sdk-v1'
 
@@ -85,7 +85,7 @@ class Crawl
       case response
       when Net::HTTPSuccess
         raise Net::HTTPBadResponse, 'Body nil' if response.body.nil?
-        return URI.unescape(url.to_s.force_encoding("UTF-8")), response.body.force_encoding("UTF-8"), response.code.to_i, nil
+        return URI.unescape(url.to_s.force_encoding('utf-8')), response.body.force_encoding('utf-8'), response.code.to_i, nil
       when Net::HTTPRedirection
         return crawl_url(response.header['location'], redirect_limit - 1)
       else
@@ -98,7 +98,7 @@ class Crawl
             Net::HTTPHeaderSyntaxError, Net::ProtocolError => e
       puts "#{url} #{e.inspect}"
       code = defined? response && !response.nil? ? response.code : 0
-      return URI.unescape(url.to_s.force_encoding("UTF-8")), nil, code.to_i, e.class
+      return URI.unescape(url.to_s.force_encoding('utf-8')), nil, code.to_i, e.class
     end
   end
 
