@@ -16,6 +16,7 @@ crawler:
     - SQS_SECURE=False
     - SQS_ADDRESS=sqs-development
     - SQS_PORT=9494
+    - MAX_THREADS=2
   links:
     - redis-development
     - db-development

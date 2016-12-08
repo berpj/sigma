@@ -1,8 +1,8 @@
 FROM ruby:2.3
 
-RUN gem install pg redis
-ADD app.rb /tmp/app.rb
+RUN gem install pg redis work_queue
+ADD . /tmp/.
 WORKDIR /tmp/
-RUN chmod 777 app.rb
+RUN chmod 777 main.rb
 
-CMD ruby app.rb
+CMD ruby main.rb
