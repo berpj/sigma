@@ -35,14 +35,18 @@
     }
     #query {
       margin-top: 40px;
-      margin-bottom: 50px;
+      margin-bottom: 30px;
     }
     #results {
-      margin-bottom: 60px;
+      margin-bottom: 40px;
       word-break: break-all;
+    }
+    #stats {
+      text-align: center;
     }
     #footer {
       margin-top: 30px;
+      text-align: center;
     }
     body {
       margin: 30px;
@@ -58,105 +62,112 @@
         <form action="/">
           <input type="text" name="q" autofocus="autofocus" class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
         </form>
+
+        <?php
+          if (isset($_GET['q']) && trim($_GET['q']) != '') {
+            $time_start = microtime(true);
+
+            $keywords = explode(' ', trim($_GET['q']));
+
+            // Get the top 1000 docs for each keyword
+            $tmp_results_array = Array();
+
+            $i = 0;
+            foreach ($keywords as $keyword) {
+              if ($i++ == 16) break; //max number of keywords
+
+              $doc_ids = Array();
+
+              $keyword = trim(strtolower($keyword));
+              setlocale(LC_CTYPE, 'en_US.UTF-8');
+              $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
+
+              if ($keyword == '') continue;
+
+              $redis_address = getenv('REDIS_ADDRESS');
+              $redis_port = getenv('REDIS_PORT');
+
+              $redis = new Redis();
+              $redis->connect($redis_address, $redis_port, 2);
+
+              $results = Array();
+
+              // Get top doc_ids for this keyword from Redis
+              $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
+
+              $tmp_results_array[] = $doc_ids;
+            }
+
+            // Intersect results
+            $doc_ids = $tmp_results_array[0];
+            for ($i = 1; $i < count($tmp_results_array); $i++) {
+              $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
+            }
+
+            echo '<p class="text-muted" style="font-size: 0.9em; margin-top: 5px">Results: ' . count($doc_ids);
+
+            // Get pageranks for these doc_ids from Redis
+            foreach ($doc_ids as $key => $value) {
+              $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
+
+              $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position' => $value, 'url' => null, 'title' => null);
+            }
+
+            // Order by score
+            uasort($results, function($a, $b) { //or usort?
+              return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
+            });
+
+            // Only keep the first 8 elements
+            $results = array_slice($results, 0, 7);
+
+            // Get metadata for these doc_ids from PG
+            foreach ($results as $key => $value) {
+              $query = "SELECT url, title, description FROM doc_index WHERE doc_id=$value[doc_id]";
+              $rs = pg_query($pg, $query) or die("Error\n");
+              $row = pg_fetch_row($rs);
+
+              $url = $row[0];
+              $title = $row[1];
+              $description = $row[2];
+
+              $results[$key]['url'] = $url;
+              $results[$key]['title'] = $title;
+              if ($description) {
+                $results[$key]['description'] = $description;
+              }
+              else {
+                $results[$key]['description'] = 'No description';
+              }
+            }
+
+            $time_end = microtime(true);
+
+            echo ' - Query time: ' . (round($time_end - $time_start, 3)) . 's</p>';
+          }
+        ?>
       </div>
     </div>
 
     <div class="row">
       <div id="results" class="col-md-8 offset-md-2">
-      <?php
-        if (isset($_GET['q']) && trim($_GET['q']) != '') {
-          $time_start = microtime(true);
+        <?php
 
-          $keywords = explode(' ', trim($_GET['q']));
+          if (isset($results)) {
+            // Print results
+            $results = array_slice($results, 0, 16);
 
-          // Get the top 1000 docs for each keyword
-          $tmp_results_array = Array();
-
-          $i = 0;
-          foreach ($keywords as $keyword) {
-            if ($i++ == 16) break; //max number of keywords
-
-            $doc_ids = Array();
-
-            $keyword = trim(strtolower($keyword));
-            setlocale(LC_CTYPE, 'en_US.UTF-8');
-            $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
-
-            if ($keyword == '') continue;
-
-            $redis_address = getenv('REDIS_ADDRESS');
-            $redis_port = getenv('REDIS_PORT');
-
-            $redis = new Redis();
-            $redis->connect($redis_address, $redis_port, 2);
-
-            $results = Array();
-
-            // Get top doc_ids for this keyword from Redis
-            $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
-
-            $tmp_results_array[] = $doc_ids;
-          }
-
-          $doc_ids = $tmp_results_array[0];
-
-          for ($i = 1; $i < count($tmp_results_array); $i++) {
-            $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
-          }
-
-          // Get pageranks for these doc_ids from Redis
-          foreach ($doc_ids as $key => $value) {
-            $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
-
-            $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position' => $value, 'url' => null, 'title' => null);
-          }
-
-          // Order by score
-          uasort($results, function($a, $b) { //or usort?
-            return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
-          });
-
-          // Only keep the first 8 elements
-          $results = array_slice($results, 0, 7);
-
-          // Get metadata for these doc_ids from PG
-          foreach ($results as $key => $value) {
-            $query = "SELECT url, title, description FROM doc_index WHERE doc_id=$value[doc_id]";
-            $rs = pg_query($pg, $query) or die("Error\n");
-            $row = pg_fetch_row($rs);
-
-            $url = $row[0];
-            $title = $row[1];
-            $description = $row[2];
-
-            $results[$key]['url'] = $url;
-            $results[$key]['title'] = $title;
-            if ($description) {
-              $results[$key]['description'] = $description;
+            $i = 0;
+            foreach ($results as $key => $value) {
+              echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
             }
-            else {
-              $results[$key]['description'] = 'No description';
+            if (!$results) {
+              echo 'No result<br>';
             }
+
+            $redis->close();
           }
-
-          // Print results
-          $results = array_slice($results, 0, 16);
-
-          $time_end = microtime(true);
-
-          $i = 0;
-          foreach ($results as $key => $value) {
-            echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span><br><span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
-          }
-          if (!$results) {
-            echo 'No result<br>';
-          }
-
-          $redis->close();
-
-          echo '<br><p class="text-muted">Query time: ' . (round($time_end - $time_start, 3)) . 's</p>';
-        }
-      ?>
+        ?>
       </div>
     </div>
 
