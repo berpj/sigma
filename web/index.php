@@ -135,11 +135,19 @@
 
               $results[$key]['url'] = $url;
               $results[$key]['title'] = $title;
+
               if ($description) {
                 $results[$key]['description'] = $description;
               }
               else {
                 $results[$key]['description'] = 'No description';
+              }
+
+              if ($title) {
+                $results[$key]['title'] = $title;
+              }
+              else {
+                $results[$key]['title'] = $url;
               }
             }
 
