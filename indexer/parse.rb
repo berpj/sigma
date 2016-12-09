@@ -47,14 +47,12 @@ class Parse
 
   def update_title
     tag = @html.css('title')
-    puts tag
-    puts tag.text
     @title = tag.text.force_encoding('utf-8') unless tag.nil? || tag.text.nil?
   end
 
   def update_description
     tags = @html.css('meta[name="description"]')
-    @description = tags.first['content'].force_encoding('utf-8') unless tags.nil? || tags.first.nil?
+    @description = tags.first['content'].force_encoding('utf-8') unless tags.nil? || tags.first.nil? || tags.first['content'].nil?
   end
 
   def update_words

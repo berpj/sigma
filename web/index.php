@@ -27,7 +27,6 @@
   <link href="data:image/x-icon;base64,AAABAAEAEBAAAAAAAABoBQAAFgAAACgAAAAQAAAAIAAAAAEACAAAAAAAAAEAAAAAAAAAAAAAAAEAAAAAAAAAAAAA////AN3d3QB4eHgAu7u7AP7+/gBWVlYAmZmZAHd3dwC6uroAMzMzABEREQAyMjIA7u7uAHV1dQDMzMwAZ2dnAKqqqgCIiIgAIyMjAGZmZgABAQEAREREAIeHhwAiIiIAZWVlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAABUAFRUAAAwAAAAAAAAKFQAAFQAAFRUVAAAAAAAAAgwNAAAAAAAJGAIAAAAAAAAPCgAAAAAAAAkRAAAAAAAAAAcZAAAAAAAAAAAAAAAAAAAAAxcBAAAAAAAAAAAAAAAAAAAGCQEAAAAAAAAAAAAAAAAAFgsCAAAAAAAAAAAAAAAACAAGAAAAAAAAAAAAAAAABwATDQAAAAAAAAAAAAAADxULAgAAAAAAAAAAAAAAAgsABAAAAAAAEgEAAAAAAAoAEgAAAAAAEhAFAAAAABQVABUAAAAAFQAOAQAAAAAAAAAAAAAAAAAAAAAAAP//AADABwAA4AcAAOPjAADz8wAA+f8AAPx/AAD+PwAA/j8AAPx/AAD4fwAA8P8AAOHzAADj4wAAwAMAAP//AAA=" rel="icon" type="image/x-icon" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha.4/css/bootstrap.css">
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
-  <script src="/algolia.js"></script>
   <style>
     h1 {
       font-size: 3.6em;
@@ -40,6 +39,9 @@
     #results {
       margin-bottom: 40px;
       word-break: break-all;
+    }
+    #results strong {
+      font-weight: 500;
     }
     #stats {
       text-align: center;
@@ -60,7 +62,7 @@
     <div class="row">
       <div id="query" class="col-md-8 offset-md-2">
         <form action="/">
-          <input type="text" name="q" autofocus="autofocus" class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
+          <input type="text" name="q" <?php if (! isset($_GET['q']) || ! trim($_GET['q']) != '') { echo 'autofocus="autofocus"'; } ?> class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
         </form>
 
         <?php
@@ -159,7 +161,8 @@
 
             $i = 0;
             foreach ($results as $key => $value) {
-              echo '<a href="' . $value['url'] . '">' . $value['title'] . '</a><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
+              $domain = parse_url($value['url'])['host'];
+              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="https://www.google.com/s2/favicons?domain=' . $domain . '"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
             }
             if (!$results) {
               echo 'No result<br>';
@@ -214,5 +217,7 @@
       v0.4
     </div>
   </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 </body>
 </html>

@@ -10,7 +10,6 @@ RUN a2enmod rewrite
 
 ADD . /var/www/html/
 
-
 WORKDIR /tmp
 
 RUN wget https://pecl.php.net/get/redis-3.0.0.tgz
@@ -22,8 +21,6 @@ RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
-
-
 
 EXPOSE 80
 CMD /usr/sbin/apache2ctl -D FOREGROUND
