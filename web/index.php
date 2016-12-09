@@ -62,7 +62,7 @@
     <div class="row">
       <div id="query" class="col-md-8 offset-md-2">
         <form action="/">
-          <input type="text" name="q" <?php if (! isset($_GET['q']) || ! trim($_GET['q']) != '') { echo 'autofocus="autofocus"'; } ?> class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
+          <input placeholder="Search" type="text" name="q" <?php if (! isset($_GET['q']) || ! trim($_GET['q']) != '') { echo 'autofocus="autofocus"'; } ?> class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
         </form>
 
         <?php
@@ -170,7 +170,7 @@
             $i = 0;
             foreach ($results as $key => $value) {
               $domain = parse_url($value['url'])['host'];
-              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="https://www.google.com/s2/favicons?domain=' . $domain . '"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
+              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
             }
             if (!$results) {
               echo 'No result<br>';
