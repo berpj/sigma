@@ -70,6 +70,7 @@
             $time_start = microtime(true);
 
             $keywords = explode(' ', trim($_GET['q']));
+            $keywords = array_unique($keywords);
 
             // Get the top 1000 docs for each keyword
             $tmp_results_array = Array();
@@ -101,9 +102,21 @@
             }
 
             // Intersect results
-            $doc_ids = $tmp_results_array[0];
-            for ($i = 1; $i < count($tmp_results_array); $i++) {
-              $doc_ids = array_intersect_key($doc_ids, $tmp_results_array[$i]);
+            $doc_ids = [];
+            foreach ($tmp_results_array[0] as $key => $value) {
+              $count = 0.0;
+              $score = 0.0;
+              foreach ($tmp_results_array as $key2 => $value2) {
+                if (array_key_exists($key, $tmp_results_array[$key2])) {
+                  $score += $tmp_results_array[$key2][$key];
+                  $count++;
+                }
+              }
+
+              if ($count == count($tmp_results_array)) {
+                $score /= $count;
+                $doc_ids[$key] = $score;
+              }
             }
 
             echo '<p class="text-muted" style="font-size: 0.9em; margin-top: 5px">Results: ' . count($doc_ids);
@@ -170,7 +183,7 @@
             $i = 0;
             foreach ($results as $key => $value) {
               $domain = parse_url($value['url'])['host'];
-              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
+              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32" onError="this.onerror=null;this.src=\'/default_favicon.png\';"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
             }
             if (!$results) {
               echo 'No result<br>';

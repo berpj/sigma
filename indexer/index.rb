@@ -104,7 +104,7 @@ class Index
 
   def add_to_words(words, doc_id)
     words.each do |word|
-      @redis.zadd("words_#{word[:word]}", word[:position], doc_id, nx: true)
+      @redis.zadd("words_#{word[:word]}", (2 * word[:quality] + word[:position]) / 3.0, doc_id, nx: true)
     end
   end
 end

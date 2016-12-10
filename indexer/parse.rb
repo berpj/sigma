@@ -3,7 +3,10 @@ class Parse
   attr_reader :urls, :title, :description, :words
 
   def initialize(doc)
+    require 'i18n'
     require 'nokogiri'
+
+    I18n.config.available_locales = :en
 
     @url = doc[:url]
     @html = Nokogiri::HTML(doc[:content])
@@ -11,6 +14,21 @@ class Parse
     @description = nil
     @words = []
     @urls = []
+
+    @qualities = {
+      'title' => 8.0 / 8,
+      'h1' => 8.0 / 8,
+      'h2' => 7.0 / 8,
+      'h3' => 6.0 / 8,
+      'h4' => 5.0 / 8,
+      'h5' => 4.0 / 8,
+      'h6' => 3.0 / 8,
+      'strong' => 2.0 / 8,
+      'b' => 2.0 / 8,
+      'em' => 1.0 / 8,
+      'u' => 1.0 / 8,
+      'i' => 1.0 / 8
+    }
   end
 
   def start
@@ -56,20 +74,41 @@ class Parse
   end
 
   def update_words
-    require 'i18n'
-
     @html.css('head, script, link').each { |node| node.remove unless node.nil? } # Remove useless html nodes
-    text = @html.css('body').text
 
-    text = "#{@title} #{text}"
-    text = text.tr("\n", ' ').downcase # Normalize text
-    text_array = text.split(/\W+/) # Text to array of words
+    tmp_words = []
 
-    words_count = text_array.count
+    parsed = parse_node('title', @title)
+    tmp_words += parsed unless parsed.nil? || parsed.empty?
+
+    @html.search('//text()').each do |node|
+      parsed = parse_node(node.parent.node_name, node.text)
+      tmp_words += parsed unless parsed.nil? || parsed.empty?
+    end
+
+    words_count = tmp_words.count
     position = 0
-    text_array.each do |word|
-      @words << { word: word, position: (1. - (position / words_count.to_f)).round(5) }
+    tmp_words.each do |word|
+      @words << { word: word[:text], quality: word[:quality], position: (1.0 - (position / words_count.to_f)).round(5) }
+
       position += 1
     end
+  end
+
+  def parse_node(node_name, text)
+    return nil if node_name.nil? || text.nil? || text !~ /\w/ || ! @qualities.key?(node_name)
+
+    text = text.tr("\n", ' ').downcase.strip # Normalize text
+    text = I18n.transliterate(text)
+
+    return nil if text == ''
+
+    text_array = text.split(/\W+/)
+
+    tmp_words = []
+
+    text_array.each { |word| tmp_words << {quality: @qualities[node_name], text: word} }
+
+    tmp_words
   end
 end
