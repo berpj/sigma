@@ -11,6 +11,8 @@ $(function() {
         html += '<strong><a href="' + v['url'] + '"><img class="favicon" width="16px" src="//logo.clearbit.com/' + v['domain'] + '?size=32" onError="this.onerror=null;this.src=\'/default_favicon.png\';"> ' + v['title'] + '</a></strong><br>' + v['description'] + '<br><span class="text-muted">' + v['url'] + '</span> <span class="text-muted hidden-sm-down"><br>[lang: ' + v['lang'] + '] [scores: ' + v['position_quality'] + ', ' + v['pagerank'] + ']</span><br><br>';
       });
 
+      $('#results').css('opacity', '1');
+
       if (html == '') {
         $('#counters').hide();
         $('#results').html('No result');
@@ -27,6 +29,8 @@ $(function() {
     var keywords = $('input[name="q"]').val().toLowerCase();
 
     window.history.pushState(null, null, '/?q=' + keywords);
+
+    $('#results').css('opacity', '0.1');
 
     doSearch();
     return false;
