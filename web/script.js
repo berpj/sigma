@@ -17,6 +17,7 @@ $(function() {
         $('#counters').hide();
         $('#results').html('No result');
       } else {
+        $('input').blur();
         $('#counters').show();
         if (page > 0) {
           $('#results').append(html);
@@ -24,7 +25,6 @@ $(function() {
           $('#results').html(html);
         }
         $('#see-more').remove();
-        console.log(data['count'], data['results'].length)
         if (data['results'].length + page * 10 < data['count'] || data['count'] == '1000+') {
           $('#results').append('<div class="col-sm-12" style="text-align: center!important"><a href="#" id="see-more" class="btn btn-secondary" data-page="' + (page + 1) + '">See more</a></div>')
         }
@@ -32,7 +32,19 @@ $(function() {
     }, 'json');
   }
 
+  function getStats() {
+    $.get("stats.php", function(data) {
+      $('#pages_indexed').text(data['pages_indexed']);
+      $('#pages_crawled').text(data['pages_crawled']);
+      $('#crawling_speed').text(data['crawling_speed']);
+    }, 'json');
+  }
+
   doSearch();
+
+  getStats();
+
+  $('input').focus();
 
   $('form').submit(function(e) {
     var keywords = $('input[name="q"]').val().toLowerCase();

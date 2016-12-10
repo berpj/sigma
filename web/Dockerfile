@@ -3,7 +3,7 @@ FROM ubuntu:yakkety
 RUN apt-get update -y
 RUN apt-get install -y apache2 php libapache2-mod-php php-pgsql php-curl php7.0-dev wget unzip
 
-RUN printf "<IfModule mod_dir.c>\nDirectoryIndex index.php\n</IfModule>\n" > /etc/apache2/mods-enabled/dir.conf
+RUN printf "<IfModule mod_dir.c>\nDirectoryIndex index.html\n</IfModule>\n" > /etc/apache2/mods-enabled/dir.conf
 
 RUN sed -i "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf
 RUN a2enmod rewrite

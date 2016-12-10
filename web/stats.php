@@ -9,6 +9,12 @@
       return number_format($n);
   }
 
+  $stats = [
+    'pages_indexed' => 999,
+    'pages_crawled' => 999,
+    'crawling_speed' => '0/s'
+  ];
+
   $db_hostname = getenv('DB_HOSTNAME');
   $db_username = getenv('DB_USERNAME');
   $db_password = getenv('DB_PASSWORD');
@@ -20,22 +26,21 @@
   $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.doc_index'::regclass;";
   $rs = pg_query($pg, $query) or die("Error\n");
   $row = pg_fetch_row($rs);
-
-  echo  "<strong>Pages indexed:</strong> " . nice_number($row[0]) . "<br>";
+  $stats['pages_indexed'] = nice_number($row[0]);
 
 
   $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.repository'::regclass;";
   $rs = pg_query($pg, $query) or die("Error\n");
   $row = pg_fetch_row($rs);
-
-  echo  "<strong>Pages crawled:</strong> " . nice_number($row[0]) . "<br>";
+  $stats['pages_crawled'] = nice_number($row[0]);
 
 
   $query = "SELECT COUNT(*) FROM doc_index WHERE status='OK' AND parsed_at > ROUND(extract(epoch from now())) - 120";
   $rs = pg_query($pg, $query) or die("Error\n");
   $row = pg_fetch_row($rs);
+  $stats['crawling_speed'] = round($row[0] / 120, 1) . '/s';
 
-  echo  "<strong>Crawling speed:</strong> " . round($row[0] / 120, 1) . "/s<br>";
+  echo json_encode($stats);
 
   pg_close($pg);
 ?>
