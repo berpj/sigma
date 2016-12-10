@@ -121,16 +121,24 @@
 
             echo '<p class="text-muted" style="font-size: 0.9em; margin-top: 5px">Results: ' . count($doc_ids);
 
+            // First order by score
+            uasort($doc_ids, function($a, $b) { //or usort?
+              return $a['position_quality'] <= $b['position_quality'];
+            });
+
+            // Only keep the first 100 elements
+            $doc_ids = array_slice($doc_ids, 0, 999, true);
+
             // Get pageranks for these doc_ids from Redis
             foreach ($doc_ids as $key => $value) {
               $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
 
-              $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position' => $value, 'url' => null, 'title' => null);
+              $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position_quality' => $value, 'url' => null, 'title' => null);
             }
 
-            // Order by score
+            // Second order by score
             uasort($results, function($a, $b) { //or usort?
-              return $a['pagerank'] + $a['position'] <= $b['pagerank'] + $b['position'];
+              return $a['pagerank'] + $a['position_quality'] <= $b['pagerank'] + $b['position_quality'];
             });
 
             // Only keep the first 8 elements
@@ -166,7 +174,7 @@
 
             $time_end = microtime(true);
 
-            echo ' - Query time: ' . (round($time_end - $time_start, 3)) . 's</p>';
+            echo ' - Query time: ' . (round(($time_end - $time_start) * 1000, 0)) . 'ms</p>';
           }
         ?>
       </div>
@@ -183,7 +191,7 @@
             $i = 0;
             foreach ($results as $key => $value) {
               $domain = parse_url($value['url'])['host'];
-              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32" onError="this.onerror=null;this.src=\'/default_favicon.png\';"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
+              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32" onError="this.onerror=null;this.src=\'/default_favicon.png\';"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position_quality'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
             }
             if (!$results) {
               echo 'No result<br>';
