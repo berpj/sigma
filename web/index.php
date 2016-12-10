@@ -134,7 +134,7 @@
             });
 
             // Only keep the first 8 elements
-            $results = array_slice($results, 0, 7);
+            $results = array_slice($results, 0, 9);
 
             // Get metadata for these doc_ids from PG
             foreach ($results as $key => $value) {
