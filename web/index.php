@@ -77,7 +77,8 @@
 
             $i = 0;
             foreach ($keywords as $keyword) {
-              if ($i++ == 16) break; //max number of keywords
+              if ($i++ == 16) //max number of keywords
+                break;
 
               $doc_ids = Array();
 
@@ -85,7 +86,8 @@
               setlocale(LC_CTYPE, 'en_US.UTF-8');
               $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
 
-              if ($keyword == '') continue;
+              if ($keyword == '')
+                continue;
 
               $redis_address = getenv('REDIS_ADDRESS');
               $redis_port = getenv('REDIS_PORT');
@@ -120,6 +122,8 @@
             }
 
             echo '<p class="text-muted" style="font-size: 0.9em; margin-top: 5px">Results: ' . count($doc_ids);
+            if (count($doc_ids) == 1000)
+              echo '+';
 
             // Get pageranks for these doc_ids from Redis
             foreach ($doc_ids as $key => $value) {
@@ -128,45 +132,55 @@
               $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position_quality' => $value, 'url' => null, 'title' => null);
             }
 
+            // Scale Pagerank (between 0 and 1)
+            if ($results) {
+              $max_pagerank = max(array_column($results, 'pagerank'));
+              foreach ($results as $key => $value) {
+                $results[$key]['pagerank'] /= $max_pagerank;
+              }
+            }
+
             // Order by score
             uasort($results, function($a, $b) { //or usort?
               return $a['pagerank'] + $a['position_quality'] <= $b['pagerank'] + $b['position_quality'];
             });
 
-            // Only keep the first 8 elements
-            $results = array_slice($results, 0, 9);
+            // Only keep the first 10 elements
+            $results = array_slice($results, 0, 10);
 
             // Get metadata for these doc_ids from PG
             foreach ($results as $key => $value) {
-              $query = "SELECT url, title, description FROM doc_index WHERE doc_id=$value[doc_id]";
+              $query = "SELECT url, title, description, lang FROM doc_index WHERE doc_id=$value[doc_id]";
               $rs = pg_query($pg, $query) or die("Error\n");
               $row = pg_fetch_row($rs);
 
               $url = $row[0];
               $title = $row[1];
               $description = $row[2];
+              $lang = $row[3];
 
               $results[$key]['url'] = $url;
               $results[$key]['title'] = $title;
 
-              if ($description) {
-                $results[$key]['description'] = $description;
-              }
-              else {
-                $results[$key]['description'] = 'No description';
-              }
+              if ($lang)
+                $results[$key]['lang'] = strtoupper($lang);
+              else
+                $results[$key]['lang'] = '?';
 
-              if ($title) {
+              if ($description)
+                $results[$key]['description'] = $description;
+              else
+                $results[$key]['description'] = 'No description';
+
+              if ($title)
                 $results[$key]['title'] = $title;
-              }
-              else {
+              else
                 $results[$key]['title'] = $url;
-              }
             }
 
             $time_end = microtime(true);
 
-            echo ' - Query time: ' . (round(($time_end - $time_start) * 1000, 0)) . 'ms</p>';
+            echo ' (' . (round(($time_end - $time_start) * 1000, 0)) . 'ms)</p>';
           }
         ?>
       </div>
@@ -177,17 +191,13 @@
         <?php
 
           if (isset($results)) {
-            // Print results
-            $results = array_slice($results, 0, 16);
-
             $i = 0;
             foreach ($results as $key => $value) {
               $domain = parse_url($value['url'])['host'];
-              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32" onError="this.onerror=null;this.src=\'/default_favicon.png\';"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down">(scores: ' . round($value['position_quality'], 3) . ', ' . round($value['pagerank'], 3) . ')</span><br><br>';
+              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32" onError="this.onerror=null;this.src=\'/default_favicon.png\';"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down"><br>[' . $value['lang'] . '] [scores: ' . round($value['position_quality'], 3) . ', ' . round($value['pagerank'], 3) . ']</span><br><br>';
             }
-            if (!$results) {
+            if (!$results)
               echo 'No result<br>';
-            }
 
             $redis->close();
           }
