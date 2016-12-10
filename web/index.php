@@ -121,14 +121,6 @@
 
             echo '<p class="text-muted" style="font-size: 0.9em; margin-top: 5px">Results: ' . count($doc_ids);
 
-            // First order by score
-            uasort($doc_ids, function($a, $b) { //or usort?
-              return $a['position_quality'] <= $b['position_quality'];
-            });
-
-            // Only keep the first 100 elements
-            $doc_ids = array_slice($doc_ids, 0, 999, true);
-
             // Get pageranks for these doc_ids from Redis
             foreach ($doc_ids as $key => $value) {
               $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
@@ -136,7 +128,7 @@
               $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position_quality' => $value, 'url' => null, 'title' => null);
             }
 
-            // Second order by score
+            // Order by score
             uasort($results, function($a, $b) { //or usort?
               return $a['pagerank'] + $a['position_quality'] <= $b['pagerank'] + $b['position_quality'];
             });

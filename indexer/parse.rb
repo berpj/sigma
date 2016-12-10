@@ -1,6 +1,6 @@
 # Parse HTML
 class Parse
-  attr_reader :urls, :title, :description, :words
+  attr_reader :urls, :title, :description, :lang, :words
 
   def initialize(doc)
     require 'i18n'
@@ -12,6 +12,7 @@ class Parse
     @html = Nokogiri::HTML(doc[:content])
     @title = nil
     @description = nil
+    @lang = nil
     @words = []
     @urls = []
 
@@ -35,6 +36,7 @@ class Parse
     update_urls
     update_title
     update_description
+    update_lang
     update_words
   end
 
@@ -71,6 +73,10 @@ class Parse
   def update_description
     tags = @html.css('meta[name="description"]')
     @description = tags.first['content'].force_encoding('utf-8') unless tags.nil? || tags.first.nil? || tags.first['content'].nil?
+  end
+
+  def update_lang
+    @lang = @html.at('html')[:lang]
   end
 
   def update_words

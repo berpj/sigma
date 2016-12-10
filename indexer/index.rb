@@ -11,7 +11,7 @@ class Index
 
     @db = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
-    @db.prepare('update_doc_in_doc_index', 'update doc_index set title=$1, description=$2, outgoing_links=$3, parsed_at=$4, status=$5, url=$6 WHERE doc_id=$7')
+    @db.prepare('update_doc_in_doc_index', 'update doc_index set title=$1, description=$2, lang=$3, outgoing_links=$4, parsed_at=$5, status=$6, url=$7 WHERE doc_id=$8')
     @db.prepare('insert_doc_into_doc_index', 'INSERT INTO doc_index (url) VALUES ($1) RETURNING *')
     @db.prepare('delete_from_errors', 'DELETE FROM errors WHERE doc_id=$1')
     @db.prepare('delete_from_doc_index', 'DELETE FROM doc_index WHERE doc_id=$1')
@@ -45,9 +45,10 @@ class Index
       urls = parse.urls
       title = parse.title
       description = parse.description
+      lang = parse.lang
       words = parse.words
 
-      update_index(doc[:doc_id], title, description, urls.count, Time.now.to_i, doc[:url]) # SQL update
+      update_index(doc[:doc_id], title, description, lang, urls.count, Time.now.to_i, doc[:url]) # SQL update
       add_to_words(words, doc[:doc_id]) # Redis
 
       urls.each do |url|
@@ -89,8 +90,8 @@ class Index
 
   private
 
-  def update_index(doc_id, title, description, outgoing_links, parsed_at, url)
-    @db.exec_prepared('update_doc_in_doc_index', [title, description, outgoing_links, parsed_at, 'OK', url, doc_id])
+  def update_index(doc_id, title, description, lang, outgoing_links, parsed_at, url)
+    @db.exec_prepared('update_doc_in_doc_index', [title, description, lang, outgoing_links, parsed_at, 'OK', url, doc_id])
   end
 
   def add_to_index(url)

@@ -23,6 +23,7 @@ CREATE TABLE doc_index (
   url text,
   title text,
   description text,
+  lang text,
   outgoing_links  integer,
   status varchar(4),
   parsed_at integer,
