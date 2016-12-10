@@ -43,7 +43,7 @@
   }
 
   if (count($keywords) == 0) {
-    echo json_encode($data);
+    echo $_GET['callback']."(".json_encode($data).")";
     return;
   }
 
@@ -178,5 +178,5 @@
 
   // Output results in JSON
 
-  echo json_encode($data);
+  echo $_GET['callback']."(".json_encode($data).")";
 ?>

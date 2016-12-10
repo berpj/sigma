@@ -40,7 +40,7 @@
   $row = pg_fetch_row($rs);
   $stats['crawling_speed'] = round($row[0] / 120, 1) . '/s';
 
-  echo json_encode($stats);
+  echo $_GET['callback']."(".json_encode($stats).")";
 
   pg_close($pg);
 ?>

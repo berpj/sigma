@@ -68,10 +68,10 @@ url-server:
     - db-development
     - sqs-development
 
-web:
-  build: web
+searcher:
+  build: searcher
   volumes:
-    - ./web/.:/var/www/html/
+    - ./searcher/.:/var/www/html/
   environment:
     - DB_HOSTNAME=db-development
     - DB_NAME=search_engine
@@ -87,12 +87,21 @@ web:
     - SQS_ADDRESS=sqs-development
     - SQS_PORT=9494
     - SHOW_ERRORS=True
-  ports:
-    - "80:80"
   links:
     - redis-development
     - db-development
     - sqs-development
+  ports:
+    - "8080:80"
+
+web:
+  build: web
+  volumes:
+    - ./web/.:/var/www/html/
+  ports:
+    - "80:80"
+  links:
+    - searcher
 
 pageranker:
   build: pageranker
