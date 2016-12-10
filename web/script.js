@@ -26,6 +26,7 @@ $(function() {
         $('#see-more').remove();
         console.log(data['count'], data['results'].length)
         if (data['results'].length + page * 10 < data['count'] || data['count'] == '1000+') {
+          $('#results').append('<div class="col-sm-12" style="text-align: center!important"><a href="#" id="see-more" class="btn btn-secondary" data-page="' + (page + 1) + '">See more</a></div>')
         }
       }
     }, 'json');
