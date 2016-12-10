@@ -29,7 +29,7 @@
       margin-bottom: 30px;
     }
     #results {
-      margin-bottom: 40px;
+      margin-bottom: 50px;
       word-break: break-all;
     }
     #results strong {

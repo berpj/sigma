@@ -1,8 +1,8 @@
 $(function() {
-  function doSearch() {
+  function doSearch(page = 0) {
     var keywords = $('input[name="q"]').val().toLowerCase();
 
-    $.get("search.php", {q: keywords}, function(data) {
+    $.get("search.php", {q: keywords, page: page}, function(data) {
       $('#count').text(data['count']);
       $('#time').text(data['time']);
 
@@ -18,7 +18,15 @@ $(function() {
         $('#results').html('No result');
       } else {
         $('#counters').show();
-        $('#results').html(html);
+        if (page > 0) {
+          $('#results').append(html);
+        } else {
+          $('#results').html(html);
+        }
+        $('#see-more').remove();
+        console.log(data['count'], data['results'].length)
+        if (data['results'].length + page * 10 < data['count'] || data['count'] == '1000+') {
+        }
       }
     }, 'json');
   }
@@ -35,4 +43,9 @@ $(function() {
     doSearch();
     return false;
   })
+
+  $(document).on('click', '#see-more', function(){
+    doSearch($(this).data('page'));
+    return false;
+  });
 });

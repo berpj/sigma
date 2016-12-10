@@ -11,7 +11,7 @@
     ini_set('display_errors', 0);
   }
 
-  if (!isset($_GET['q']) || trim($_GET['q']) == '')
+  if (!isset($_GET['q']) || trim($_GET['q']) == '' || !isset($_GET['page']) || trim($_GET['page']) == '')
     die();
 
 
@@ -134,7 +134,7 @@
 
 
   // Only keep the first 10 elements
-  $data['results'] = array_slice($data['results'], 0, 10);
+  $data['results'] = array_slice($data['results'], 10 * $_GET['page'], 10);
 
 
   // Get metadata for these doc_ids from PG
