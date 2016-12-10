@@ -22,7 +22,7 @@ In active development: https://github.com/berpj/sigma/projects/2
 
 ### Architecture
 
-![Architecture diagram](http://i.imgur.com/YuVDXIP.png)
+![Architecture diagram](https://raw.githubusercontent.com/berpj/sigma/master/diagram.png)
 
 *To write*
 
