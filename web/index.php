@@ -1,12 +1,4 @@
 <?php
-  $db_hostname = getenv('DB_HOSTNAME');
-  $db_username = getenv('DB_USERNAME');
-  $db_password = getenv('DB_PASSWORD');
-  $db_name = getenv('DB_NAME');
-  $db_port = getenv('DB_PORT');
-
-  $pg = pg_connect("host=$db_hostname port=$db_port dbname=$db_name user=$db_username password=$db_password") or die ("Could not connect to server\n");
-
   if (getenv('SHOW_ERRORS') == 'True') {
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
@@ -61,185 +53,20 @@
 
     <div class="row">
       <div id="query" class="col-md-8 offset-md-2">
-        <form action="/">
-          <input placeholder="Search" type="text" name="q" <?php if (! isset($_GET['q']) || ! trim($_GET['q']) != '') { echo 'autofocus="autofocus"'; } ?> class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
+        <form action="/" autocomplete="false">
+          <input autocomplete="off" placeholder="Search" type="text" name="q" <?php if (! isset($_GET['q']) || ! trim($_GET['q']) != '') { echo 'autofocus="autofocus"'; } ?> class="form-control" value="<? if (isset($_GET['q'])) echo $_GET['q'] ?>">
         </form>
-
-        <?php
-          if (isset($_GET['q']) && trim($_GET['q']) != '') {
-            $time_start = microtime(true);
-
-            $keywords = explode(' ', trim($_GET['q']));
-            $keywords = array_unique($keywords);
-
-            // Get the top 1000 docs for each keyword
-            $tmp_results_array = Array();
-
-            $i = 0;
-            foreach ($keywords as $keyword) {
-              if ($i++ == 16) //max number of keywords
-                break;
-
-              $doc_ids = Array();
-
-              $keyword = trim(strtolower($keyword));
-              setlocale(LC_CTYPE, 'en_US.UTF-8');
-              $keyword = iconv("UTF-8", "ASCII//TRANSLIT//IGNORE", $keyword);
-
-              if ($keyword == '')
-                continue;
-
-              $redis_address = getenv('REDIS_ADDRESS');
-              $redis_port = getenv('REDIS_PORT');
-
-              $redis = new Redis();
-              $redis->connect($redis_address, $redis_port, 2);
-
-              $results = Array();
-
-              // Get top doc_ids for this keyword from Redis
-              $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
-
-              $tmp_results_array[] = $doc_ids;
-            }
-
-            // Intersect results
-            $doc_ids = [];
-            foreach ($tmp_results_array[0] as $key => $value) {
-              $count = 0.0;
-              $score = 0.0;
-              foreach ($tmp_results_array as $key2 => $value2) {
-                if (array_key_exists($key, $tmp_results_array[$key2])) {
-                  $score += $tmp_results_array[$key2][$key];
-                  $count++;
-                }
-              }
-
-              if ($count == count($tmp_results_array)) {
-                $score /= $count;
-                $doc_ids[$key] = $score;
-              }
-            }
-
-            echo '<p class="text-muted" style="font-size: 0.9em; margin-top: 5px">Results: ' . count($doc_ids);
-            if (count($doc_ids) == 1000)
-              echo '+';
-
-            // Get pageranks for these doc_ids from Redis
-            foreach ($doc_ids as $key => $value) {
-              $pagerank = $redis->hGet("pageranks_$key", 'pagerank');
-
-              $results[] = array('doc_id' => $key, 'pagerank' => $pagerank, 'position_quality' => $value, 'url' => null, 'title' => null);
-            }
-
-            // Scale Pagerank (between 0 and 1)
-            if ($results) {
-              $max_pagerank = max(array_column($results, 'pagerank'));
-              foreach ($results as $key => $value) {
-                $results[$key]['pagerank'] /= $max_pagerank;
-              }
-            }
-
-            // Order by score
-            uasort($results, function($a, $b) { //or usort?
-              return $a['pagerank'] + $a['position_quality'] <= $b['pagerank'] + $b['position_quality'];
-            });
-
-            // Only keep the first 10 elements
-            $results = array_slice($results, 0, 10);
-
-            // Get metadata for these doc_ids from PG
-            foreach ($results as $key => $value) {
-              $query = "SELECT url, title, description, lang FROM doc_index WHERE doc_id=$value[doc_id]";
-              $rs = pg_query($pg, $query) or die("Error\n");
-              $row = pg_fetch_row($rs);
-
-              $url = $row[0];
-              $title = $row[1];
-              $description = $row[2];
-              $lang = $row[3];
-
-              $results[$key]['url'] = $url;
-              $results[$key]['title'] = $title;
-
-              if ($lang)
-                $results[$key]['lang'] = strtoupper($lang);
-              else
-                $results[$key]['lang'] = '?';
-
-              if ($description)
-                $results[$key]['description'] = $description;
-              else
-                $results[$key]['description'] = 'No description';
-
-              if ($title)
-                $results[$key]['title'] = $title;
-              else
-                $results[$key]['title'] = $url;
-            }
-
-            $time_end = microtime(true);
-
-            echo ' (' . (round(($time_end - $time_start) * 1000, 0)) . 'ms)</p>';
-          }
-        ?>
+        <div style="display: none" id="counters"><span id="count">0</span> results (<span id="time">0ms</span>)</div>
       </div>
     </div>
 
     <div class="row">
-      <div id="results" class="col-md-8 offset-md-2">
-        <?php
-
-          if (isset($results)) {
-            $i = 0;
-            foreach ($results as $key => $value) {
-              $domain = parse_url($value['url'])['host'];
-              echo '<strong><a href="' . $value['url'] . '"><img class="favicon" width="16px" src="//logo.clearbit.com/' . $domain . '?size=32" onError="this.onerror=null;this.src=\'/default_favicon.png\';"> ' . $value['title'] . '</a></strong><br>' . $value['description'] . '<br><span class="text-muted">' . $value['url'] . '</span> <span class="text-muted hidden-sm-down"><br>[' . $value['lang'] . '] [scores: ' . round($value['position_quality'], 3) . ', ' . round($value['pagerank'], 3) . ']</span><br><br>';
-            }
-            if (!$results)
-              echo 'No result<br>';
-
-            $redis->close();
-          }
-        ?>
-      </div>
+      <div id="results" class="col-md-8 offset-md-2"></div>
     </div>
 
     <div class="row">
       <div id="stats" class="col-md-8 offset-md-2">
-        <?php
-          function nice_number($n) {
-              $n = (0+str_replace(",", "", $n));
-
-              if (!is_numeric($n)) return false;
-              elseif ($n > 1000000) return round(($n / 1000000), 1) . 'M';
-              elseif ($n > 1000) return round(($n / 1000), 0) . 'k';
-
-              return number_format($n);
-          }
-
-          $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.doc_index'::regclass;";
-          $rs = pg_query($pg, $query) or die("Error\n");
-          $row = pg_fetch_row($rs);
-
-          echo  "<strong>Pages indexed:</strong> " . nice_number($row[0]) . "<br>";
-
-
-          $query = "SELECT reltuples FROM pg_class WHERE oid = 'public.repository'::regclass;";
-          $rs = pg_query($pg, $query) or die("Error\n");
-          $row = pg_fetch_row($rs);
-
-          echo  "<strong>Pages crawled:</strong> " . nice_number($row[0]) . "<br>";
-
-
-          $query = "SELECT COUNT(*) FROM doc_index WHERE status='OK' AND parsed_at > ROUND(extract(epoch from now())) - 120";
-          $rs = pg_query($pg, $query) or die("Error\n");
-          $row = pg_fetch_row($rs);
-
-          echo  "<strong>Crawling speed:</strong> " . round($row[0] / 120, 1) . "/s<br>";
-
-          pg_close($pg);
-        ?>
+        <?php require('stats.php'); ?>
       </div>
     </div>
 
@@ -250,5 +77,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
