@@ -52,6 +52,9 @@ class PageRank
 
     backlinks = backlinks(doc['doc_id'])
 
+    return 0.0 if backlinks.count == 1 # PR=0 if doc only has one backlink to reduce spam
+    return 1.0 - damping_factor if doc['outgoing_links'] <= 1 # Minimal PR if doc doesn't have more than one outgoing link to reduce spam
+
     backlinks_pagerank = 0
 
     # PR(T1)/C(T1) + ... + PR(Tn)/C(Tn)
@@ -63,7 +66,7 @@ class PageRank
       backlinks_pagerank += backlink['pagerank'].to_f / backlink['outgoing_links'].to_f
     end
 
-    (1 - damping_factor) + damping_factor * backlinks_pagerank # PR(A) = (1-d) + d (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
+    (1.0 - damping_factor) + damping_factor * backlinks_pagerank # PR(A) = (1-d) + d (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
   end
 
   def update(doc_id, result)
