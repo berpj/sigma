@@ -62,6 +62,9 @@ class Index
       outgoing_links = urls.count
 
       update_index(doc[:doc_id], title, description, lang, outgoing_links, Time.now.to_i, doc[:url]) # SQL update
+
+      next if lang != 'en' # Limit search to english docs
+
       send_doc_to_pageranker(doc[:doc_id], outgoing_links)
       add_to_words(words, doc[:doc_id]) # Redis
 
