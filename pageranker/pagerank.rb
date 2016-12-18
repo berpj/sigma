@@ -50,14 +50,19 @@ class PageRank
   end
 
   def start
-    $stdout.sync = true
-
     @redis.scan_each(match: 'pageranks_*') do |key|
       hash = @redis.hgetall(key)
-      doc =  { 'doc_id' => key.split('_')[1], 'pagerank' => hash['pagerank'], 'outgoing_links' => hash['outgoing_links'] }
+      doc =  { 'doc_id' => key.split('_')[1], 'pagerank' => hash['pagerank'].to_f, 'outgoing_links' => hash['outgoing_links'].to_i }
 
       result = compute(doc)
-      update(doc['doc_id'], result)
+      update(doc['doc_id'], result, true) # Tmp save
+    end
+
+    @redis.scan_each(match: 'tmp_pageranks_*') do |key|
+      hash = @redis.hgetall(key)
+      doc =  { 'doc_id' => key.split('_')[2], 'pagerank' => hash['pagerank'].to_f }
+
+      update(doc['doc_id'], doc['pagerank'], false) # Definitive save
     end
   end
 
@@ -84,7 +89,7 @@ class PageRank
     backlinks = backlinks(doc['doc_id'])
 
     return 0.0 if backlinks.count == 1 # PR=0 if doc only has one backlink to reduce spam
-    return 1.0 - damping_factor if doc['outgoing_links'].to_i <= 1 # Minimal PR if doc doesn't have more than one outgoing link to reduce spam
+    return 1.0 - damping_factor if doc['outgoing_links'] <= 1 # Minimal PR if doc doesn't have more than one outgoing link to reduce spam
 
     backlinks_pagerank = 0
 
@@ -100,7 +105,11 @@ class PageRank
     (1.0 - damping_factor) + damping_factor * backlinks_pagerank # PR(A) = (1-d) + d (PR(T1)/C(T1) + ... + PR(Tn)/C(Tn))
   end
 
-  def update(doc_id, result)
-    @redis.hset("pageranks_#{doc_id}", 'pagerank', result)
+  def update(doc_id, result, tmp)
+    if tmp
+      @redis.hset("tmp_pageranks_#{doc_id}", 'pagerank', result)
+    else
+      @redis.hset("pageranks_#{doc_id}", 'pagerank', result)
+    end
   end
 end

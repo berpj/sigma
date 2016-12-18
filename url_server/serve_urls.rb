@@ -52,8 +52,6 @@ class ServeUrls
       queue = @sqs.queues.named('search_engine_docs_to_crawl')
     end
 
-    queue = @sqs.queues.named('search_engine_docs_to_crawl')
-
     approximate_number_of_messages = queue.approximate_number_of_messages
 
     i = 0
