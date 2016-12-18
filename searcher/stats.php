@@ -35,7 +35,7 @@
   $stats['pages_crawled'] = nice_number($row[0]);
 
 
-  $query = "SELECT COUNT(*) FROM doc_index WHERE status='OK' AND parsed_at > ROUND(extract(epoch from now())) - 120";
+  $query = "SELECT COUNT(*) FROM doc_index WHERE status!='WIP' AND status IS NOT NULL AND parsed_at > ROUND(extract(epoch from now())) - 120";
   $rs = pg_query($pg, $query) or die("Error\n");
   $row = pg_fetch_row($rs);
   $stats['crawling_speed'] = round($row[0] / 120, 1) . '/s';
