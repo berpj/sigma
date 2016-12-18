@@ -121,8 +121,6 @@ class Index
       queue = @sqs.queues.named('search_engine_docs_to_pagerank')
     end
 
-    queue = @sqs.queues.named('search_engine_docs_to_pagerank')
-
     message = { doc_id: doc_id, outgoing_links: outgoing_links }
 
     queue.send_message(message.to_json)
