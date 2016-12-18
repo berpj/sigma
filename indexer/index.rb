@@ -114,7 +114,7 @@ class Index
     begin
       queue = @sqs.queues.named('search_engine_docs_to_pagerank')
     rescue AWS::SQS::Errors::NonExistentQueue
-      @sqs.queues.create('search_engine_docs_to_pagerankl')
+      @sqs.queues.create('search_engine_docs_to_pagerank')
       queue = @sqs.queues.named('search_engine_docs_to_pagerank')
     end
 
