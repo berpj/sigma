@@ -6,6 +6,18 @@ class Index
   def initialize
     require 'pg'
     require 'redis'
+    require 'aws-sdk-v1'
+
+    AWS.config(
+      access_key_id: ENV['AWS_ACCESS_ID'],
+      secret_access_key: ENV['AWS_ACCESS_KEY'],
+      region: ENV['AWS_REGION'],
+      sqs_port: ENV['SQS_PORT'],
+      use_ssl: ENV['SQS_SECURE'] != 'False',
+      sqs_endpoint: ENV['SQS_ADDRESS']
+    )
+
+    @sqs = AWS::SQS.new
 
     @redis = Redis.new(host: ENV['REDIS_ADDRESS'], port: ENV['REDIS_PORT'])
 
@@ -47,8 +59,10 @@ class Index
       description = parse.description
       lang = parse.lang
       words = parse.words
+      outgoing_links = urls.count
 
-      update_index(doc[:doc_id], title, description, lang, urls.count, Time.now.to_i, doc[:url]) # SQL update
+      update_index(doc[:doc_id], title, description, lang, outgoing_links, Time.now.to_i, doc[:url]) # SQL update
+      send_doc_to_pageranker(doc[:doc_id], outgoing_links)
       add_to_words(words, doc[:doc_id]) # Redis
 
       urls.each do |url|
@@ -92,6 +106,23 @@ class Index
 
   def update_index(doc_id, title, description, lang, outgoing_links, parsed_at, url)
     @db.exec_prepared('update_doc_in_doc_index', [title, description, lang, outgoing_links, parsed_at, 'OK', url, doc_id])
+  end
+
+  def send_doc_to_pageranker(doc_id, outgoing_links)
+    require 'json'
+
+    begin
+      queue = @sqs.queues.named('search_engine_docs_to_pagerank')
+    rescue AWS::SQS::Errors::NonExistentQueue
+      @sqs.queues.create('search_engine_docs_to_pagerankl')
+      queue = @sqs.queues.named('search_engine_docs_to_pagerank')
+    end
+
+    queue = @sqs.queues.named('search_engine_docs_to_pagerank')
+
+    message = { doc_id: doc_id, outgoing_links: outgoing_links }
+
+    queue.send_message(message.to_json)
   end
 
   def add_to_index(url)

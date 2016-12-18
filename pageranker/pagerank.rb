@@ -3,26 +3,59 @@ class PageRank
   def initialize
     require 'pg'
     require 'redis'
+    require 'aws-sdk-v1'
+
+    AWS.config(
+      access_key_id: ENV['AWS_ACCESS_ID'],
+      secret_access_key: ENV['AWS_ACCESS_KEY'],
+      region: ENV['AWS_REGION'],
+      sqs_port: ENV['SQS_PORT'],
+      use_ssl: ENV['SQS_SECURE'] != 'False',
+      sqs_endpoint: ENV['SQS_ADDRESS']
+    )
+
+    @sqs = AWS::SQS.new
 
     @redis = Redis.new(host: ENV['REDIS_ADDRESS'], port: ENV['REDIS_PORT'])
 
     @db = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
-    @docs = []
+    @docs_to_index = []
+  end
+
+  def set_docs_to_index
+    begin
+      queue = @sqs.queues.named('search_engine_docs_to_pagerank')
+    rescue AWS::SQS::Errors::NonExistentQueue
+      @sqs.queues.create('search_engine_docs_to_pagerank')
+      queue = @sqs.queues.named('search_engine_docs_to_pagerank')
+    end
+
+    messages = queue.receive_messages(limit: 10)
+    return if messages.nil?
+
+    messages.each do |message|
+      doc = JSON.parse(message.body)
+      @docs_to_index << doc unless doc.nil? || doc['doc_id'].nil?
+
+      message.delete
+    end
   end
 
   def update_index
-    res = @db.exec('SELECT doc_id, url, outgoing_links FROM doc_index')
-
-    res.each do |doc|
+    @docs_to_index.each do |doc|
       @redis.hsetnx("pageranks_#{doc['doc_id']}", 'pagerank', 1.0)
       @redis.hset("pageranks_#{doc['doc_id']}", 'outgoing_links', doc['outgoing_links'])
-      @docs << doc
     end
   end
 
   def start
-    @docs.each do |doc|
+    $stdout.sync = true
+
+    @redis.scan_each(match: 'pageranks_*') do |key|
+      hash = @redis.hgetall(key)
+      doc =  { 'doc_id' => key.split('_')[1], 'pagerank' => hash['pagerank'], 'outgoing_links' => hash['outgoing_links'] }
+
       result = compute(doc)
       update(doc['doc_id'], result)
     end
@@ -46,14 +79,12 @@ class PageRank
   end
 
   def compute(doc)
-    $stdout.sync = true
-
     damping_factor = 0.85
 
     backlinks = backlinks(doc['doc_id'])
 
     return 0.0 if backlinks.count == 1 # PR=0 if doc only has one backlink to reduce spam
-    return 1.0 - damping_factor if doc['outgoing_links'] <= 1 # Minimal PR if doc doesn't have more than one outgoing link to reduce spam
+    return 1.0 - damping_factor if doc['outgoing_links'].to_i <= 1 # Minimal PR if doc doesn't have more than one outgoing link to reduce spam
 
     backlinks_pagerank = 0
 
