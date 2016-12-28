@@ -2,6 +2,7 @@
 class ServeUrls
   def initialize
     require 'pg'
+    require 'redis'
     require 'aws-sdk-v1'
 
     AWS.config(
@@ -14,6 +15,8 @@ class ServeUrls
     )
 
     @sqs = AWS::SQS.new
+
+    @redis = Redis.new(host: ENV['REDIS_ADDRESS'], port: ENV['REDIS_PORT'])
 
     @db = PGconn.connect(ENV['DB_HOSTNAME'], ENV['DB_PORT'], '', '', ENV['DB_NAME'], ENV['DB_USERNAME'], ENV['DB_PASSWORD'])
 
@@ -28,7 +31,11 @@ class ServeUrls
     res = @db.exec('SELECT DISTINCT ON (CONCAT(split_part(split_part(split_part(url, \'//\', 2), \'/\', 1), \'.\', 1), split_part(split_part(split_part(url, \'//\', 2), \'/\', 1), \'.\', 2))) doc_id, url, status FROM doc_index WHERE parsed_at IS NULL AND status IS NULL LIMIT 384')
 
     res.each do |doc|
-      @new_docs << { doc_id: doc['doc_id'], url: doc['url'], status: doc['status'] }
+      domain = extract_domain(doc['url'])
+      delta = Time.now.to_i - last_crawled_time(domain)
+
+      # Crawl this url if this domain was not crawled during the last 60 seconds
+      @new_docs << { doc_id: doc['doc_id'], url: doc['url'], domain: domain, status: doc['status'] } if delta >= 90
     end
   end
 
@@ -60,6 +67,8 @@ class ServeUrls
 
       queue.send_message(doc.to_json)
 
+      update_domain_index(doc[:domain])
+
       if doc[:status] == 'WIP'
         @db.exec_prepared('update_status_in_doc_index', ['WIP2', Time.now.to_i, doc[:doc_id]])
       else
@@ -73,4 +82,23 @@ class ServeUrls
   def close
     @db.close
   end
+
+  private
+
+    def last_crawled_time(domain)
+      timestamp = @redis.get("domains_#{domain}")
+
+      timestamp.to_i
+    end
+
+    def extract_domain(url)
+      require 'uri/http'
+
+      uri = URI.parse(URI.escape(url))
+      uri.host.split(".")[-2,2].join(".")
+    end
+
+    def update_domain_index(domain)
+      @redis.set("domains_#{domain}", Time.now.to_i)
+    end
 end

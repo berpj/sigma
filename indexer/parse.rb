@@ -76,7 +76,7 @@ class Parse
   end
 
   def update_lang
-    @lang = @html.at('html')[:lang]
+    @lang = @html.at('html')[:lang] unless @html.at('html').nil?
   end
 
   def update_words
