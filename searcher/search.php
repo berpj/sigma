@@ -90,9 +90,11 @@
 
   $redis->zInter($key, $sets);
 
-  $doc_ids = $redis->zRevRange($key, 0, -1, true);
+  $doc_ids = $redis->zRevRange($key, 0, 999, true); // Get the top 1000 docs
 
   $data['count'] = count($doc_ids);
+  if (count($doc_ids) == 1000)
+    $data['count'] .= '+';
 
 
   // Get pageranks for these doc_ids from Redis
