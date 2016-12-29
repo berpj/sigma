@@ -64,54 +64,35 @@
   $pg = pg_connect("host=$db_hostname port=$db_port dbname=$db_name user=$db_username password=$db_password") or die ("Could not connect to server\n");
 
 
-  // Get the top 1000 docs for each keyword
+  // Intersect redis ordered sets to get only the docs matching all keywords
 
   $tmp_results_array = Array();
+
+  $redis_address = getenv('REDIS_ADDRESS');
+  $redis_port = getenv('REDIS_PORT');
+
+  $redis = new Redis();
+  $redis->connect($redis_address, $redis_port, 2);
+
+  $key = "inters_" . implode("_", $keywords);
+
+  $sets = Array();
 
   $i = 0;
   foreach ($keywords as $keyword) {
     if ($i++ == 16) //max number of keywords
       break;
 
-    $doc_ids = Array();
+    $sets[] = "words_$keyword";
 
-    $redis_address = getenv('REDIS_ADDRESS');
-    $redis_port = getenv('REDIS_PORT');
-
-    $redis = new Redis();
-    $redis->connect($redis_address, $redis_port, 2);
-
-    $results = Array();
-
-    // Get the first 100,000 doc_ids for this keyword from Redis
-    $doc_ids = $redis->zRevRange("words_$keyword", 0, 100000, true);
-
-    $tmp_results_array[] = $doc_ids;
+    $i++;
   }
 
+  $redis->zInter($key, $sets);
 
-  // Intersect results
-
-  $doc_ids = [];
-  foreach ($tmp_results_array[0] as $key => $value) {
-    $count = 0.0;
-    $score = 0.0;
-    foreach ($tmp_results_array as $key2 => $value2) {
-      if (array_key_exists($key, $tmp_results_array[$key2])) {
-        $score += $tmp_results_array[$key2][$key];
-        $count++;
-      }
-    }
-
-    if ($count == count($tmp_results_array)) {
-      $score /= $count;
-      $doc_ids[$key] = $score;
-    }
-  }
+  $doc_ids = $redis->zRevRange($key, 0, -1, true);
 
   $data['count'] = count($doc_ids);
-  if (count($doc_ids) == 1000)
-    $data['count'] .= '+';
 
 
   // Get pageranks for these doc_ids from Redis
