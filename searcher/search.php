@@ -120,9 +120,13 @@
   // Scale Pagerank (between 0 and 1)
   if ($data['results']) {
     $max_pagerank = max(array_column($data['results'], 'pagerank'));
+    if ($max_pagerank == 0)
+      $max_pagerank = 1;
     foreach ($data['results'] as $key => $value) {
       $data['results'][$key]['pagerank'] /= $max_pagerank;
       $data['results'][$key]['pagerank'] = round($data['results'][$key]['pagerank'], 3);
+      if ($data['results'][$key]['pagerank'] == 0)
+        $data['results'][$key]['pagerank'] = 0.15;
     }
   }
 

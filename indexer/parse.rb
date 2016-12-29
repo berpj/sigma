@@ -94,7 +94,7 @@ class Parse
     words_count = tmp_words.count
     position = 0
     tmp_words.each do |word|
-      @words << { word: word[:text], quality: word[:quality], position: (1.0 - (position / words_count.to_f)).round(5) } if @words.count(word[:text]) < 3
+      @words << { word: word[:text], quality: word[:quality], position: (1.0 - (position / words_count.to_f)).round(5) } if @words.count { |x| x[:word] == word[:text] } < 3
 
       position += 1
     end

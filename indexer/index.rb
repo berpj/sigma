@@ -139,7 +139,7 @@ class Index
     words.each do |word|
       key = "words_#{word[:word]}"
       score = (word[:quality] + word[:position]) / 2.0
-      count = 3
+      count = 3.0
 
       current_score = @redis.zscore(key, doc_id) || 0.0
 
