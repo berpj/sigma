@@ -1,6 +1,9 @@
 <?php
   $time_start = microtime(true);
 
+  require('stemming.php');
+
+
   // Errors
 
   if (getenv('SHOW_ERRORS') == 'True') {
@@ -40,6 +43,8 @@
       unset($keywords[$key]);
       continue;
     }
+
+    $keywords[$key] = PorterStemmer::Stem($value); // Stemming
   }
 
   if (count($keywords) == 0) {

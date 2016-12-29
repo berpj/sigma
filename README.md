@@ -53,5 +53,8 @@ This last command is going to pull somes images, and build the others. Then it's
 - http://infolab.stanford.edu/~backrub/google.html
 - http://pr.efactory.de/e-pagerank-algorithm.shtml
 - http://nlp.stanford.edu/IR-book/html/htmledition/a-first-take-at-building-an-inverted-index-1.html
+- http://www.ardendertat.com/category/information-retrieval/
+- https://tartarus.org/martin/PorterStemmer/
+- https://en.wikipedia.org/wiki/Tf%E2%80%93idf
 
 *To write*

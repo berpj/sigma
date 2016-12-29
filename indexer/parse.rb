@@ -79,6 +79,8 @@ class Parse
   end
 
   def update_words
+    require 'stemmify'
+
     @html.css('head, script, link').each { |node| node.remove unless node.nil? } # Remove useless html nodes
 
     tmp_words = []
@@ -94,7 +96,7 @@ class Parse
     words_count = tmp_words.count
     position = 0
     tmp_words.each do |word|
-      @words << { word: word[:text], quality: word[:quality], position: (1.0 - (position / words_count.to_f)).round(5) } if @words.count { |x| x[:word] == word[:text] } < 3
+      @words << { word: word[:text].stem, quality: word[:quality], position: (1.0 - (position / words_count.to_f)).round(5) } if @words.count { |x| x[:word] == word[:text] } < 3
 
       position += 1
     end
