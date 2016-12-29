@@ -78,8 +78,8 @@
 
     $results = Array();
 
-    // Get top doc_ids for this keyword from Redis
-    $doc_ids = $redis->zRevRange("words_$keyword", 0, 999, true);
+    // Get the first 100,000 doc_ids for this keyword from Redis
+    $doc_ids = $redis->zRevRange("words_$keyword", 0, 100000, true);
 
     $tmp_results_array[] = $doc_ids;
   }
@@ -129,7 +129,7 @@
 
   // Order by score
   uasort($data['results'], function($a, $b) { //or usort?
-    return $a['pagerank'] + $a['position_quality'] <= $b['pagerank'] + $b['position_quality'];
+    return $a['pagerank'] * $a['position_quality'] <= $b['pagerank'] * $b['position_quality'];
   });
 
 

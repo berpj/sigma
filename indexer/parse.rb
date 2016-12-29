@@ -27,8 +27,7 @@ class Parse
       'strong' => 2.0 / 8,
       'b' => 2.0 / 8,
       'em' => 1.0 / 8,
-      'u' => 1.0 / 8,
-      'i' => 1.0 / 8
+      'u' => 1.0 / 8
     }
   end
 
@@ -95,7 +94,7 @@ class Parse
     words_count = tmp_words.count
     position = 0
     tmp_words.each do |word|
-      @words << { word: word[:text], quality: word[:quality], position: (1.0 - (position / words_count.to_f)).round(5) }
+      @words << { word: word[:text], quality: word[:quality], position: (1.0 - (position / words_count.to_f)).round(5) } if @words.count(word[:text]) < 3
 
       position += 1
     end
