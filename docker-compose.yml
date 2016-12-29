@@ -87,6 +87,7 @@ searcher:
     - SQS_ADDRESS=sqs-development
     - SQS_PORT=9494
     - SHOW_ERRORS=True
+    - SEARCH_RESULTS_CACHE_EXPIRATION=30
   links:
     - redis-development
     - db-development
