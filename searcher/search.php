@@ -60,7 +60,7 @@
 
 
   // Try to get the result for this query from redis
-  $key = "results_" . implode("_", $keywords);
+  $key = "results_" . $_GET['page'] . '_' . implode("_", $keywords);
 
   $tmp_result = $redis->get($key);
 
@@ -69,9 +69,9 @@
 
     $data['results'] = $tmp_result;
 
-    $data['count'] = count($data['results']);
-    if (count($data['results']) == 1000)
-      $data['count'] .= '+';
+    $key_count = "results_counts_" . implode("_", $keywords);
+
+    $data['count'] = $redis->get($key_count);
   } else {
     // DB
 
@@ -180,9 +180,11 @@
 
     // Cache result for next queries
 
-    $key = "results_" . implode("_", $keywords);
+    $key = "results_" . $_GET['page'] . '_' . implode("_", $keywords);
+    $key_count = "results_counts_" . implode("_", $keywords);
 
     $redis->setEx($key, getenv('SEARCH_RESULTS_CACHE_EXPIRATION'), json_encode($data['results'])); // Sets value with a time to live
+    $redis->setEx($key_count, getenv('SEARCH_RESULTS_CACHE_EXPIRATION'), $data['count']);
   }
 
 
