@@ -32,6 +32,7 @@ class ServeUrls
 
     res.each do |doc|
       domain = extract_domain(doc['url'])
+      next unless domain
       delta = Time.now.to_i - last_crawled_time(domain)
 
       # Crawl this url if this domain was not crawled during the last 60 seconds
@@ -95,6 +96,9 @@ class ServeUrls
       require 'uri/http'
 
       uri = URI.parse(URI.escape(url))
+
+      return nil unless uri.host
+
       uri.host.split(".")[-2,2].join(".")
     end
 
