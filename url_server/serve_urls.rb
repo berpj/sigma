@@ -97,7 +97,7 @@ class ServeUrls
 
       uri = URI.parse(URI.escape(url))
 
-      return nil unless uri.host
+      return nil unless uri.host && uri.host.split(".")[-2,2]
 
       uri.host.split(".")[-2,2].join(".")
     end
