@@ -95,7 +95,11 @@ class ServeUrls
     def extract_domain(url)
       require 'uri/http'
 
-      uri = URI.parse(URI.escape(url))
+      begin
+        uri = URI.parse(URI.escape(url))
+      rescue URI::InvalidURIError
+        return nil
+      end
 
       return nil unless uri.host && uri.host.split(".")[-2,2]
 
